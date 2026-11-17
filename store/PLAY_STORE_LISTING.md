@@ -26,7 +26,7 @@ For Durgapur mechanics: get nearby roadside repair jobs and earn more.
 New mechanics: register in the app; our team activates your account after verification.
 
 Support: WhatsApp +91 96352 97320
-Privacy Policy: https://durgadas-karmakar07.github.io/8speedyService-legal/privacy.html
+Privacy Policy: https://durgadas-karmakar07.github.io/8SpeedyService/privacy.html
 
 ---
 
@@ -34,12 +34,12 @@ Privacy Policy: https://durgadas-karmakar07.github.io/8speedyService-legal/priva
 
 | Section | Answer |
 |---|---|
-| Privacy policy | `https://durgadas-karmakar07.github.io/8speedyService-legal/privacy.html` |
+| Privacy policy | `https://durgadas-karmakar07.github.io/8SpeedyService/privacy.html` |
 | App access | Login + verified partner account required. Reviewer ke liye: ek test number (Supabase Test OTP) ko `mechanics` table mein `is_verified = true` ke saath add karein aur yahan number + OTP + "Tap the switch to go Online" likhein |
 | Ads | No |
 | Content rating | Everyone / 3+ |
 | Target audience | 18+ |
-| Account deletion | In-app: ⋮ menu → Account & Privacy → Delete my account. Web: `https://durgadas-karmakar07.github.io/8speedyService-legal/delete-account.html` |
+| Account deletion | In-app: ⋮ menu → Account & Privacy → Delete my account. Web: `https://durgadas-karmakar07.github.io/8SpeedyService/delete-account.html` |
 
 ### Foreground service declaration (Location) — zaroori
 Play Console → App content → **Foreground service permissions** → `FOREGROUND_SERVICE_LOCATION`:

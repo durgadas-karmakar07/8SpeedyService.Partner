@@ -90,9 +90,9 @@ class PartnerConstants {
   // Support
   // ---------------------------------------------------------------------------
 
-  // Legal pages (GitHub Pages site from the `8speedyService-legal` repo).
+  // Legal pages (GitHub Pages site from the `8SpeedyService` (gh-pages branch) repo).
   static const String legalBaseUrl =
-      'https://durgadas-karmakar07.github.io/8speedyService-legal';
+      'https://durgadas-karmakar07.github.io/8SpeedyService';
   static const String privacyPolicyUrl = '$legalBaseUrl/privacy.html';
   static const String partnerTermsUrl = '$legalBaseUrl/partner-terms.html';
 
