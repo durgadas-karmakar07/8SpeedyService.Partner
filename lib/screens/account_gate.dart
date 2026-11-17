@@ -10,6 +10,7 @@ import 'job_screen.dart';
 import 'login_screen.dart';
 import 'pending_screen.dart';
 import 'register_screen.dart';
+import '../widgets/speedy_loader.dart';
 
 /// Replaces the whole navigation stack with [screen].
 void goTo(BuildContext context, Widget screen) {
@@ -84,12 +85,10 @@ class _AccountGateScreenState extends State<AccountGateScreen> {
         child: Padding(
           padding: const EdgeInsets.all(24),
           child: _error == null
-              ? const Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: <Widget>[
-                    CircularProgressIndicator(),
-                    SizedBox(height: 16),
-                    Text('Checking your account...'),
+              ? const RoadLoader(
+                  messages: <String>[
+                    'Checking your account…',
+                    'Loading your jobs…',
                   ],
                 )
               : Column(

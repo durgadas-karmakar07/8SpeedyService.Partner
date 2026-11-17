@@ -19,6 +19,7 @@ import 'account_screen.dart';
 import 'history_screen.dart';
 import 'job_screen.dart';
 import 'login_screen.dart';
+import '../widgets/speedy_loader.dart';
 
 /// Main screen: Online/Offline switch + live list of nearby customer requests.
 class HomeScreen extends StatefulWidget {
@@ -399,11 +400,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
               ),
             ),
             if (_toggling)
-              const SizedBox(
-                width: 28,
-                height: 28,
-                child: CircularProgressIndicator(strokeWidth: 2.5),
-              )
+              const WheelLoader(size: 24)
             else
               Transform.scale(
                 scale: 1.2,
@@ -515,11 +512,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                 ),
                 const Spacer(),
                 if (!_firstLoadDone)
-                  const SizedBox(
-                    width: 16,
-                    height: 16,
-                    child: CircularProgressIndicator(strokeWidth: 2),
-                  ),
+                  const WheelLoader(size: 14),
               ],
             ),
           ),
@@ -693,11 +686,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                 minimumSize: const Size.fromHeight(48),
               ),
               child: accepting
-                  ? const SizedBox(
-                      width: 22,
-                      height: 22,
-                      child: CircularProgressIndicator(strokeWidth: 2.5, color: Colors.white),
-                    )
+                  ? const DotsLoader()
                   : const Text('Accept Job'),
             ),
           ],

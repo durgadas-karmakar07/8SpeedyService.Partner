@@ -2,6 +2,8 @@
 /// Keep in sync with legal-site/*.html.
 library;
 
+import 'constants.dart';
+
 class LegalSection {
   const LegalSection(this.heading, this.body);
   final String heading;
@@ -9,8 +11,16 @@ class LegalSection {
 }
 
 class LegalDoc {
-  const LegalDoc({required this.title, required this.updated, required this.sections});
+  const LegalDoc({
+    required this.title,
+    required this.updated,
+    required this.url,
+    required this.sections,
+  });
   final String title;
+
+  /// Same document on the public website (GitHub Pages).
+  final String url;
   final String updated;
   final List<LegalSection> sections;
 }
@@ -25,6 +35,7 @@ class LegalContent {
   static const LegalDoc privacy = LegalDoc(
     title: 'Privacy Policy',
     updated: 'Last updated: 18 November 2026',
+    url: PartnerConstants.privacyPolicyUrl,
     sections: <LegalSection>[
       LegalSection(
         'Who we are',
@@ -70,6 +81,7 @@ class LegalContent {
   static const LegalDoc partnerTerms = LegalDoc(
     title: 'Partner Terms',
     updated: 'Last updated: 18 November 2026',
+    url: PartnerConstants.partnerTermsUrl,
     sections: <LegalSection>[
       LegalSection(
         'Relationship',

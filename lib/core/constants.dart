@@ -95,6 +95,8 @@ class PartnerConstants {
       'https://durgadas-karmakar07.github.io/8SpeedyService';
   static const String privacyPolicyUrl = '$legalBaseUrl/privacy.html';
   static const String partnerTermsUrl = '$legalBaseUrl/partner-terms.html';
+  static const String deleteAccountUrl = '$legalBaseUrl/delete-account.html';
+  static const String websiteUrl = '$legalBaseUrl/';
 
   static const String supportPhoneNumber = '919635297320';
   static const String supportPhoneDisplay = '+91 96352 97320';

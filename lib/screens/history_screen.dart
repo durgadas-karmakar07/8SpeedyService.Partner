@@ -6,6 +6,7 @@ import '../core/vehicle_view.dart';
 import '../models/models.dart';
 import '../services/partner_service.dart';
 import 'login_screen.dart';
+import '../widgets/speedy_loader.dart';
 
 /// Stats (today / week / total / rating) and past jobs with customer reviews.
 class HistoryScreen extends StatefulWidget {
@@ -96,7 +97,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
             if (_loading && _stats == null)
               const Padding(
                 padding: EdgeInsets.all(40),
-                child: Center(child: CircularProgressIndicator()),
+                child: const Center(child: RoadLoader(messages: <String>['Loading your jobs…'])),
               ),
             if (_stats != null) _statsGrid(_stats!),
             const SizedBox(height: 20),

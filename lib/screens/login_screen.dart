@@ -7,6 +7,7 @@ import '../core/constants.dart';
 import '../core/error_helper.dart';
 import '../services/auth_service.dart';
 import 'account_gate.dart';
+import '../widgets/speedy_loader.dart';
 
 /// Phone + 6-digit SMS OTP login for mechanics.
 class LoginScreen extends StatefulWidget {
@@ -213,14 +214,7 @@ class _LoginScreenState extends State<LoginScreen> {
               FilledButton(
                 onPressed: _loading ? null : (_otpSent ? _verifyOtp : _sendOtp),
                 child: _loading
-                    ? const SizedBox(
-                        width: 22,
-                        height: 22,
-                        child: CircularProgressIndicator(
-                          strokeWidth: 2.5,
-                          color: Colors.white,
-                        ),
-                      )
+                    ? const DotsLoader()
                     : Text(_otpSent ? 'Verify & Continue' : 'Send OTP'),
               ),
               const SizedBox(height: 24),

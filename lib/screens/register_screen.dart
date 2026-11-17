@@ -12,6 +12,7 @@ import 'legal_screen.dart';
 import 'home_screen.dart';
 import 'login_screen.dart';
 import 'pending_screen.dart';
+import '../widgets/speedy_loader.dart';
 
 /// New mechanic self-registration. Account starts unverified; admin approves
 /// it in Supabase (mechanics.is_verified = true).
@@ -189,11 +190,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
             FilledButton(
               onPressed: _loading ? null : _submit,
               child: _loading
-                  ? const SizedBox(
-                      width: 22,
-                      height: 22,
-                      child: CircularProgressIndicator(strokeWidth: 2.5, color: Colors.white),
-                    )
+                  ? const DotsLoader()
                   : const Text('Submit for Verification'),
             ),
           ],
