@@ -18,19 +18,19 @@ Customer app wala hi Supabase backend use karta hai. Package: `com.speedyservice
 
 ## Setup
 
-1. Supabase SQL Editor mein `supabase/migrations/20261117000002_mechanic_partner_app.sql` run karein
-   (pehli migration ke baad).
+1. Backend main repo (`8SpeedyService`) mein hai: Supabase SQL Editor mein
+   `supabase/migrations/20261117000002_mechanic_partner_app.sql` run karein (pehli migration ke baad).
 2. Is folder mein:
 
 ```bash
-cd D:\8SpeedyService\mechanic_app
+cd D:\8SpeedyService.Partner
 flutter pub get
 flutter analyze
 flutter test
-flutter run --dart-define-from-file=../env/prod.json
+flutter run --dart-define-from-file=env/prod.json
 ```
 
-Customer app ki `env/prod.json` hi kaam karti hai (Razorpay key yahan use nahi hoti).
+`env/example.json` copy karke `env/prod.json` banayein (customer app wali file bhi chalegi; Razorpay key yahan use nahi hoti). Yeh file git mein nahi jaati.
 
 ## Release build
 
@@ -38,7 +38,7 @@ Customer app wala hi upload keystore use kar sakte hain (ya naya). `android/key.
 (format customer app jaisa) phir:
 
 ```bash
-flutter build appbundle --release --dart-define-from-file=../env/prod.json
+flutter build appbundle --release --dart-define-from-file=env/prod.json
 ```
 
 Play Console mein **naya app** banayein (`com.speedyservice.partner`).
