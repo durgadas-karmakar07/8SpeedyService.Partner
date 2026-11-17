@@ -6,6 +6,7 @@ import '../services/auth_service.dart';
 import '../services/partner_service.dart';
 import 'account_gate.dart';
 import 'login_screen.dart';
+import '../widgets/speedy_loader.dart';
 
 class SplashScreen extends StatefulWidget {
   const SplashScreen({super.key});
@@ -88,13 +89,10 @@ class _SplashScreenState extends State<SplashScreen> {
                   child: const Text('Update Now'),
                 ),
               ] else
-                const SizedBox(
-                  width: 26,
-                  height: 26,
-                  child: CircularProgressIndicator(
-                    strokeWidth: 2.5,
-                    color: Colors.white,
-                  ),
+                const RoadLoader(
+                  color: Colors.white,
+                  width: 240,
+                  messages: <String>['Starting the engine…', 'Connecting to 8Speedy…'],
                 ),
             ],
           ),

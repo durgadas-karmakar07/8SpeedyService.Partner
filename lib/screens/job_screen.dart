@@ -14,6 +14,7 @@ import '../services/location_service.dart';
 import '../services/partner_service.dart';
 import 'account_gate.dart';
 import 'home_screen.dart';
+import '../widgets/speedy_loader.dart';
 
 /// Active job flow: Navigate -> Arrived -> Start OTP -> Complete.
 class JobScreen extends StatefulWidget {
@@ -584,11 +585,7 @@ class _JobScreenState extends State<JobScreen> with WidgetsBindingObserver {
 
   List<Widget> _actions(String status) {
     Widget busyChild(String label) => _busy
-        ? const SizedBox(
-            width: 22,
-            height: 22,
-            child: CircularProgressIndicator(strokeWidth: 2.5, color: Colors.white),
-          )
+        ? const DotsLoader()
         : Text(label);
 
     switch (status) {

@@ -10,6 +10,7 @@ import '../services/location_service.dart';
 import 'account_gate.dart';
 import 'legal_screen.dart';
 import 'login_screen.dart';
+import '../widgets/speedy_loader.dart';
 
 /// Asks for confirmation, deletes the account on the server and returns to
 /// the login screen. Used from Account, Pending and Register screens.
@@ -58,7 +59,7 @@ Future<void> confirmAndDeleteAccount(BuildContext context) async {
   showDialog<void>(
     context: context,
     barrierDismissible: false,
-    builder: (_) => const Center(child: CircularProgressIndicator()),
+    builder: (_) => const Center(child: WheelLoader()),
   );
   try {
     await LocationService.instance.stop();
@@ -136,6 +137,20 @@ class AccountScreen extends StatelessWidget {
                   title: const Text('Partner Terms'),
                   trailing: const Icon(Icons.chevron_right_rounded),
                   onTap: () => _openDoc(context, LegalContent.partnerTerms),
+                ),
+                const Divider(height: 1),
+                ListTile(
+                  leading: const Icon(Icons.info_outline_rounded),
+                  title: const Text('How account deletion works'),
+                  trailing: const Icon(Icons.open_in_new_rounded, size: 18),
+                  onTap: () => _open(context, PartnerConstants.deleteAccountUrl),
+                ),
+                const Divider(height: 1),
+                ListTile(
+                  leading: const Icon(Icons.public_rounded),
+                  title: const Text('Website'),
+                  trailing: const Icon(Icons.open_in_new_rounded, size: 18),
+                  onTap: () => _open(context, PartnerConstants.websiteUrl),
                 ),
                 const Divider(height: 1),
                 ListTile(
