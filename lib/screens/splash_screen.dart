@@ -89,10 +89,17 @@ class _SplashScreenState extends State<SplashScreen> {
                   child: const Text('Update Now'),
                 ),
               ] else
-                const RoadLoader(
-                  color: Colors.white,
-                  width: 240,
-                  messages: <String>['Starting the engine…', 'Connecting to 8Speedy…'],
+                Container(
+                  padding: const EdgeInsets.fromLTRB(16, 14, 16, 12),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(24),
+                  ),
+                  child: const RoadLoader(
+                    color: PartnerConstants.darkColor,
+                    width: 220,
+                    messages: <String>['Starting the engine…', 'Connecting to 8Speedy…'],
+                  ),
                 ),
             ],
           ),
