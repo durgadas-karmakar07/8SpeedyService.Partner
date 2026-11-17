@@ -88,7 +88,7 @@ class LocationService {
         foregroundNotificationConfig: const ForegroundNotificationConfig(
           notificationTitle: '8Speedy Partner — Online',
           notificationText:
-              'Aap online hain. Nearby requests aur live location chalu hai.',
+              'You are online. Receiving nearby requests and sharing live location.',
           enableWakeLock: true,
         ),
       );

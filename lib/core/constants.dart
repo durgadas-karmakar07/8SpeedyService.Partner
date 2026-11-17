@@ -90,9 +90,16 @@ class PartnerConstants {
   // Support
   // ---------------------------------------------------------------------------
 
-  static const String supportPhoneNumber = '919800000000';
+  // Legal pages (GitHub Pages site from the `8speedyService-legal` repo).
+  static const String legalBaseUrl =
+      'https://durgadas-karmakar07.github.io/8speedyService-legal';
+  static const String privacyPolicyUrl = '$legalBaseUrl/privacy.html';
+  static const String partnerTermsUrl = '$legalBaseUrl/partner-terms.html';
+
+  static const String supportPhoneNumber = '919635297320';
+  static const String supportPhoneDisplay = '+91 96352 97320';
   static const String whatsappSupportUrl =
-      'https://wa.me/919800000000?text=Hi%208SpeedyService%2C%20I%20am%20a%20Partner%20mechanic%20and%20need%20help.';
+      'https://wa.me/919635297320?text=Hi%208SpeedyService%2C%20I%20am%20a%20partner%20mechanic%20and%20need%20help.';
 
   // ---------------------------------------------------------------------------
   // Vehicles
@@ -104,6 +111,27 @@ class PartnerConstants {
     VehicleType('four_wheeler', 'Car / SUV', Icons.directions_car_rounded),
     VehicleType('heavy_vehicle', 'Heavy / Van', Icons.local_shipping_rounded),
   ];
+
+  /// Illustration for a booking's vehicle (body type first, else category).
+  static String vehicleAsset({String? bodyType, required String category}) {
+    const bodies = <String>{
+      'cycle', 'e_rickshaw', 'scooter', 'motorcycle', 'auto_rickshaw',
+      'hatchback', 'sedan', 'suv', 'pickup', 'truck',
+    };
+    if (bodyType != null && bodies.contains(bodyType)) {
+      return 'assets/vehicles/$bodyType.png';
+    }
+    switch (category) {
+      case 'cycle_toto':
+        return 'assets/vehicles/e_rickshaw.png';
+      case 'four_wheeler':
+        return 'assets/vehicles/hatchback.png';
+      case 'heavy_vehicle':
+        return 'assets/vehicles/pickup.png';
+      default:
+        return 'assets/vehicles/scooter.png';
+    }
+  }
 
   static VehicleType vehicleFor(String key) {
     for (final v in vehicleTypes) {

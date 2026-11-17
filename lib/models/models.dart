@@ -104,6 +104,8 @@ class OpenRequest {
     required this.lng,
     required this.distanceMeters,
     required this.createdAt,
+    this.vehicleLabel,
+    this.vehicleBodyType,
   });
 
   factory OpenRequest.fromJson(Map<String, dynamic> json) {
@@ -117,6 +119,8 @@ class OpenRequest {
       lng: _toDouble(json['pickup_lng']),
       distanceMeters: _toDouble(json['distance_meters']),
       createdAt: _toDate(json['created_at']),
+      vehicleLabel: _toStringOrNull(json['vehicle_label']),
+      vehicleBodyType: _toStringOrNull(json['vehicle_body_type']),
     );
   }
 
@@ -129,6 +133,8 @@ class OpenRequest {
   final double lng;
   final double distanceMeters;
   final DateTime? createdAt;
+  final String? vehicleLabel;
+  final String? vehicleBodyType;
 }
 
 /// The job currently assigned to this mechanic (`mechanic_get_active_job`).
@@ -145,6 +151,8 @@ class ActiveJob {
     required this.customerName,
     required this.customerPhone,
     required this.minVisitCharge,
+    this.vehicleLabel,
+    this.vehicleBodyType,
   });
 
   factory ActiveJob.fromJson(Map<String, dynamic> json) {
@@ -160,6 +168,8 @@ class ActiveJob {
       customerName: json['customer_name']?.toString() ?? 'Customer',
       customerPhone: _toStringOrNull(json['customer_phone']),
       minVisitCharge: _toInt(json['min_visit_charge'], 49),
+      vehicleLabel: _toStringOrNull(json['vehicle_label']),
+      vehicleBodyType: _toStringOrNull(json['vehicle_body_type']),
     );
   }
 
@@ -174,6 +184,8 @@ class ActiveJob {
   final String customerName;
   final String? customerPhone;
   final int minVisitCharge;
+  final String? vehicleLabel;
+  final String? vehicleBodyType;
 }
 
 /// Result of `mechanic_start_job` (OTP check).
@@ -230,6 +242,8 @@ class JobHistoryItem {
     required this.reviewText,
     required this.cancelledBy,
     required this.when,
+    this.vehicleLabel,
+    this.vehicleBodyType,
   });
 
   factory JobHistoryItem.fromJson(Map<String, dynamic> json) {
@@ -245,6 +259,8 @@ class JobHistoryItem {
       when: _toDate(json['completed_at']) ??
           _toDate(json['cancelled_at']) ??
           _toDate(json['accepted_at']),
+      vehicleLabel: _toStringOrNull(json['vehicle_label']),
+      vehicleBodyType: _toStringOrNull(json['vehicle_body_type']),
     );
   }
 
@@ -257,6 +273,8 @@ class JobHistoryItem {
   final String? reviewText;
   final String? cancelledBy;
   final DateTime? when;
+  final String? vehicleLabel;
+  final String? vehicleBodyType;
 
   bool get isCompleted => status == 'COMPLETED';
 }

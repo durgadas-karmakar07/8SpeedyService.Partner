@@ -42,4 +42,25 @@ class AuthService {
   }
 
   Future<void> signOut() => _client.auth.signOut();
+
+  /// Permanently deletes the account (Google Play requirement). Server
+  /// anonymises the partner profile and ends all sessions.
+  Future<void> deleteAccount() async {
+    final response = await _client.functions.invoke(
+      'delete-account',
+      body: <String, dynamic>{'confirm': 'DELETE'},
+    );
+    final data = response.data;
+    if (data is Map && data['deleted'] == true) {
+      try {
+        await _client.auth.signOut(scope: SignOutScope.local);
+      } catch (_) {}
+      return;
+    }
+    throw StateError(
+      data is Map && data['error'] is String
+          ? data['error'] as String
+          : 'Could not delete the account. Please try again.',
+    );
+  }
 }

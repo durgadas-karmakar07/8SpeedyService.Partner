@@ -16,3 +16,6 @@ app.*.map.json
 *.keystore
 /env/*.json
 !/env/example.json
+
+# temp files
+/_to_delete/

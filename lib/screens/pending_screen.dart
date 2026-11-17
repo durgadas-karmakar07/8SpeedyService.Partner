@@ -5,6 +5,7 @@ import '../core/constants.dart';
 import '../models/models.dart';
 import '../services/auth_service.dart';
 import 'account_gate.dart';
+import 'account_screen.dart';
 import 'login_screen.dart';
 
 /// Shown while the admin hasn't verified the mechanic yet.
@@ -35,13 +36,13 @@ class PendingScreen extends StatelessWidget {
                 Text(
                   profile == null
                       ? 'Verification pending'
-                      : 'Namaste ${profile!.firstName}!',
+                      : 'Hi ${profile!.firstName}!',
                   style: const TextStyle(fontSize: 24, fontWeight: FontWeight.w800),
                   textAlign: TextAlign.center,
                 ),
                 const SizedBox(height: 10),
                 const Text(
-                  'Aapka partner account verification mein hai. Hamari team aapse call karke documents (Aadhaar, shop photo) check karegi. Verify hote hi aap Online jaakar jobs le sakte hain.',
+                  'Your partner account is being verified. Our team will call you to check your documents (Aadhaar, shop photo). Once verified, you can go online and take jobs.',
                   textAlign: TextAlign.center,
                   style: TextStyle(height: 1.45),
                 ),
@@ -49,7 +50,7 @@ class PendingScreen extends StatelessWidget {
                 FilledButton.icon(
                   onPressed: () => goTo(context, const AccountGateScreen()),
                   icon: const Icon(Icons.refresh_rounded),
-                  label: const Text('Status check karein'),
+                  label: const Text('Check status'),
                 ),
                 const SizedBox(height: 12),
                 OutlinedButton.icon(
@@ -69,6 +70,11 @@ class PendingScreen extends StatelessWidget {
                     goTo(context, const LoginScreen());
                   },
                   child: const Text('Logout'),
+                ),
+                TextButton(
+                  onPressed: () => confirmAndDeleteAccount(context),
+                  style: TextButton.styleFrom(foregroundColor: PartnerConstants.dangerColor),
+                  child: const Text('Delete account'),
                 ),
               ],
             ),

@@ -54,14 +54,9 @@ class _SplashScreenState extends State<SplashScreen> {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: <Widget>[
-              Container(
-                padding: const EdgeInsets.all(22),
-                decoration: BoxDecoration(
-                  color: PartnerConstants.primaryColor,
-                  borderRadius: BorderRadius.circular(28),
-                ),
-                child: const Icon(Icons.build_circle_rounded,
-                    color: Colors.white, size: 64),
+              ClipRRect(
+                borderRadius: BorderRadius.circular(30),
+                child: Image.asset('assets/images/logo.png', width: 112, height: 112),
               ),
               const SizedBox(height: 20),
               const Text(
@@ -80,7 +75,7 @@ class _SplashScreenState extends State<SplashScreen> {
               const SizedBox(height: 36),
               if (_needsUpdate) ...<Widget>[
                 const Text(
-                  'Naya version available hai. Continue karne ke liye app update karein.',
+                  'A new version is available. Please update the app to continue.',
                   textAlign: TextAlign.center,
                   style: TextStyle(color: Colors.white, fontSize: 15),
                 ),

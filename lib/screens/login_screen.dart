@@ -52,7 +52,7 @@ class _LoginScreenState extends State<LoginScreen> {
     FocusScope.of(context).unfocus();
     final phone = _phoneController.text.trim();
     if (!AuthService.isValidIndianMobile(phone)) {
-      setState(() => _error = 'Sahi 10-digit mobile number daalein.');
+      setState(() => _error = 'Enter a valid 10-digit mobile number.');
       return;
     }
     setState(() {
@@ -71,7 +71,7 @@ class _LoginScreenState extends State<LoginScreen> {
       if (!mounted) return;
       setState(() {
         _loading = false;
-        _error = ErrorHelper.friendly(e, fallback: 'OTP nahi bhej paaye. Retry karein.');
+        _error = ErrorHelper.friendly(e, fallback: 'Could not send the OTP. Please try again.');
       });
     }
   }
@@ -80,7 +80,7 @@ class _LoginScreenState extends State<LoginScreen> {
     FocusScope.of(context).unfocus();
     final otp = _otpController.text.trim();
     if (!RegExp(r'^\d{6}$').hasMatch(otp)) {
-      setState(() => _error = 'SMS mein aaya 6-digit OTP daalein.');
+      setState(() => _error = 'Enter the 6-digit OTP from the SMS.');
       return;
     }
     setState(() {
@@ -102,7 +102,7 @@ class _LoginScreenState extends State<LoginScreen> {
       if (!mounted) return;
       setState(() {
         _loading = false;
-        _error = ErrorHelper.friendly(e, fallback: 'OTP galat hai ya expire ho gaya.');
+        _error = ErrorHelper.friendly(e, fallback: 'The OTP is wrong or has expired.');
       });
     }
   }
@@ -118,18 +118,13 @@ class _LoginScreenState extends State<LoginScreen> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: <Widget>[
               const SizedBox(height: 24),
-              Container(
-                padding: const EdgeInsets.all(14),
-                decoration: BoxDecoration(
-                  color: PartnerConstants.primaryColor.withValues(alpha: 0.12),
-                  borderRadius: BorderRadius.circular(16),
-                ),
-                child: const Icon(Icons.engineering_rounded,
-                    color: PartnerConstants.primaryColor, size: 34),
+              ClipRRect(
+                borderRadius: BorderRadius.circular(18),
+                child: Image.asset('assets/images/logo.png', width: 64, height: 64),
               ),
               const SizedBox(height: 20),
               Text(
-                _otpSent ? 'OTP daalein' : 'Partner Login',
+                _otpSent ? 'Enter OTP' : 'Partner Login',
                 style: theme.textTheme.headlineSmall?.copyWith(
                   fontWeight: FontWeight.w800,
                   color: PartnerConstants.darkColor,
@@ -138,8 +133,8 @@ class _LoginScreenState extends State<LoginScreen> {
               const SizedBox(height: 8),
               Text(
                 _otpSent
-                    ? '+91 ${_phoneController.text.trim()} par SMS bheja gaya hai.'
-                    : '8SpeedyService mechanic partner ke roop mein login karein. Apna registered mobile number daalein.',
+                    ? 'We sent an SMS to +91 ${_phoneController.text.trim()}.'
+                    : 'Log in as an 8SpeedyService mechanic partner with your mobile number.',
                 style: theme.textTheme.bodyMedium?.copyWith(
                   color: Colors.blueGrey.shade700,
                   height: 1.4,
@@ -203,7 +198,7 @@ class _LoginScreenState extends State<LoginScreen> {
                               });
                             },
                       icon: const Icon(Icons.edit_rounded, size: 18),
-                      label: const Text('Number badlein'),
+                      label: const Text('Change number'),
                     ),
                     TextButton(
                       onPressed: (_loading || _resendSeconds > 0) ? null : _sendOtp,
@@ -230,7 +225,7 @@ class _LoginScreenState extends State<LoginScreen> {
               ),
               const SizedBox(height: 24),
               Text(
-                'Naye mechanic? Login karne ke baad registration form bharein — verification ke baad aapko jobs milne lagengi.',
+                'New mechanic? Log in, fill the registration form, and start getting jobs after verification.',
                 style: TextStyle(color: Colors.blueGrey.shade600, fontSize: 12.5),
               ),
             ],

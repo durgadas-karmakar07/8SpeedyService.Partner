@@ -2,6 +2,7 @@ import 'package:material_ui/material_ui.dart';
 
 import '../core/constants.dart';
 import '../core/error_helper.dart';
+import '../core/vehicle_view.dart';
 import '../models/models.dart';
 import '../services/partner_service.dart';
 import 'login_screen.dart';
@@ -105,7 +106,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
             if (!_loading && _items.isEmpty)
               const Padding(
                 padding: EdgeInsets.all(24),
-                child: Text('Abhi tak koi job nahi. Online jaakar pehli job lein!',
+                child: Text('No jobs yet. Go online to get your first job!',
                     textAlign: TextAlign.center),
               ),
             ..._items.map(_historyTile),
@@ -169,9 +170,14 @@ class _HistoryScreenState extends State<HistoryScreen> {
       margin: const EdgeInsets.only(bottom: 8),
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
       child: ListTile(
-        leading: Icon(vehicle.icon, color: PartnerConstants.darkColor),
+        leading: SizedBox(
+          width: 56,
+          child: VehicleImage(category: j.vehicleType, bodyType: j.vehicleBodyType, height: 34),
+        ),
         title: Text(
-          j.issueTags.isEmpty ? vehicle.title : j.issueTags.join(', '),
+          j.vehicleLabel != null
+              ? vehicleName(j.vehicleLabel, j.vehicleType)
+              : (j.issueTags.isEmpty ? vehicle.title : j.issueTags.join(', ')),
           maxLines: 1,
           overflow: TextOverflow.ellipsis,
           style: const TextStyle(fontWeight: FontWeight.w700),
