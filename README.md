@@ -15,11 +15,14 @@ Customer app wala hi Supabase backend use karta hai. Package: `com.speedyservice
    Start se pehle "job chhodein" se booking wapas dusre mechanics ke paas chali jaati hai (customer app radar par wapas aa jaata hai).
    Customer cancel kare to 8 sec mein popup aa jaata hai.
 5. **My Jobs** — aaj / 7 din / total jobs, rating, reviews.
+6. **Account & Privacy** (⋮ menu) — Privacy Policy, Partner Terms, WhatsApp support, **Delete my account**
+   (Google Play ki zaroorat; Pending aur Registration screen se bhi).
 
 ## Setup
 
-1. Backend main repo (`8SpeedyService`) mein hai: Supabase SQL Editor mein
-   `supabase/migrations/20261117000002_mechanic_partner_app.sql` run karein (pehli migration ke baad).
+1. Backend main repo (`8SpeedyService`) mein hai. Supabase SQL Editor mein migrations order mein run karein
+   (`000001`, `000002`, `000003`) aur `delete-account` Edge Function deploy karein —
+   poori list main repo ke `PRODUCTION_SETUP.md` mein hai.
 2. Is folder mein:
 
 ```bash
@@ -38,12 +41,13 @@ Customer app wala hi upload keystore use kar sakte hain (ya naya). `android/key.
 (format customer app jaisa) phir:
 
 ```bash
-flutter build appbundle --release --dart-define-from-file=env/prod.json
+flutter build appbundle --release --obfuscate --split-debug-info=build/symbols --dart-define-from-file=env/prod.json
 ```
 
-Play Console mein **naya app** banayein (`com.speedyservice.partner`).
+Play Console mein **naya app** banayein (`com.speedyservice.partner`). Listing text, icon, feature graphic,
+Data safety aur Foreground-service declaration ke jawab: `store/PLAY_STORE_LISTING.md`.
 
-### Play Console declarations (zaroori)
+### Play Console declarations (zaroori — details `store/PLAY_STORE_LISTING.md` mein)
 - **Foreground service — Location**: app Online rehte hue location share karta hai (ongoing notification ke saath).
   Declaration form mein likhein: "Mechanic partners share live location while online so customers can track the
   assigned mechanic and receive nearby repair requests." + ek short screen-recording video.

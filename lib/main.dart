@@ -34,6 +34,7 @@ class PartnerApp extends StatelessWidget {
       debugShowCheckedModeBanner: false,
       theme: ThemeData(
         useMaterial3: true,
+        fontFamily: 'Poppins',
         colorScheme: scheme,
         scaffoldBackgroundColor: PartnerConstants.backgroundColor,
         appBarTheme: const AppBarTheme(
@@ -41,6 +42,20 @@ class PartnerApp extends StatelessWidget {
           foregroundColor: Colors.white,
           elevation: 0,
           surfaceTintColor: Colors.transparent,
+          titleTextStyle: TextStyle(
+            fontFamily: 'Poppins',
+            fontSize: 18,
+            fontWeight: FontWeight.w700,
+            color: Colors.white,
+          ),
+        ),
+        snackBarTheme: SnackBarThemeData(
+          behavior: SnackBarBehavior.floating,
+          backgroundColor: PartnerConstants.darkColor,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        ),
+        dialogTheme: DialogThemeData(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
         ),
         filledButtonTheme: FilledButtonThemeData(
           style: FilledButton.styleFrom(

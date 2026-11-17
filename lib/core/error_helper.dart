@@ -9,24 +9,34 @@ class ErrorHelper {
 
   static String friendly(
     Object error, {
-    String fallback = 'Kuch galat ho gaya. Please dobara try karein.',
+    String fallback = 'Something went wrong. Please try again.',
   }) {
     if (error is SocketException || error is TimeoutException) {
-      return 'Internet connection weak hai. Network check karke retry karein.';
+      return 'Weak internet connection. Check your network and try again.';
     }
     if (error is AuthException) {
       return error.message.isNotEmpty ? error.message : fallback;
     }
     if (error is PostgrestException) {
       final message = error.message.trim();
+      if (error.code == 'PGRST202') {
+        return 'The server is being updated. Please try again in a few minutes.';
+      }
       if (error.code == '28000' || error.code == 'PGRST301') {
-        return 'Session expire ho gaya. Please dobara login karein.';
+        return 'Your session has expired. Please log in again.';
       }
       // Messages raised by our SQL functions are already user friendly.
       if (message.isNotEmpty &&
           !message.contains('violates') &&
           !message.contains('permission denied')) {
         return message;
+      }
+      return fallback;
+    }
+    if (error is FunctionException) {
+      final details = error.details;
+      if (details is Map && details['error'] is String) {
+        return details['error'] as String;
       }
       return fallback;
     }
@@ -37,7 +47,7 @@ class ErrorHelper {
     if (text.contains('SocketException') ||
         text.contains('Failed host lookup') ||
         text.contains('ClientException')) {
-      return 'Internet connection weak hai. Network check karke retry karein.';
+      return 'Weak internet connection. Check your network and try again.';
     }
     return fallback;
   }
@@ -63,10 +73,10 @@ class Fmt {
   static String ago(DateTime? time) {
     if (time == null) return '';
     final diff = DateTime.now().difference(time.toLocal());
-    if (diff.inSeconds < 60) return 'abhi';
-    if (diff.inMinutes < 60) return '${diff.inMinutes} min pehle';
-    if (diff.inHours < 24) return '${diff.inHours} ghante pehle';
-    return '${diff.inDays} din pehle';
+    if (diff.inSeconds < 60) return 'just now';
+    if (diff.inMinutes < 60) return '${diff.inMinutes} min ago';
+    if (diff.inHours < 24) return '${diff.inHours} h ago';
+    return '${diff.inDays} d ago';
   }
 
   static String dateTime(DateTime? time) {

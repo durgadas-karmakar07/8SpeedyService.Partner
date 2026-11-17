@@ -91,7 +91,7 @@ class PartnerService {
 
   Future<List<OpenRequest>> getOpenRequests(int radiusMeters) async {
     final data = await _client.rpc<dynamic>(
-      'mechanic_get_open_requests',
+      'mechanic_get_open_requests_v2',
       params: <String, dynamic>{'p_radius_meters': radiusMeters},
     );
     return _asList(data).map(OpenRequest.fromJson).toList();
@@ -167,7 +167,7 @@ class PartnerService {
 
   Future<List<JobHistoryItem>> getHistory({int limit = 50}) async {
     final data = await _client.rpc<dynamic>(
-      'mechanic_get_job_history',
+      'mechanic_get_job_history_v2',
       params: <String, dynamic>{'p_limit': limit},
     );
     return _asList(data).map(JobHistoryItem.fromJson).toList();

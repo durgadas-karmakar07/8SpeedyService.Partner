@@ -9,11 +9,13 @@ import 'package:url_launcher/url_launcher.dart';
 
 import '../core/constants.dart';
 import '../core/error_helper.dart';
+import '../core/vehicle_view.dart';
 import '../models/models.dart';
 import '../services/auth_service.dart';
 import '../services/location_service.dart';
 import '../services/partner_service.dart';
 import 'account_gate.dart';
+import 'account_screen.dart';
 import 'history_screen.dart';
 import 'job_screen.dart';
 import 'login_screen.dart';
@@ -99,13 +101,13 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
         icon: const Icon(Icons.location_on_rounded, color: PartnerConstants.primaryColor),
         title: const Text('Location access'),
         content: const Text(
-          'Jab aap Online hote hain, 8Speedy Partner aapki location use karta hai taaki:\n\n'
-          '• aapke paas ki customer requests dikhayi ja sakein\n'
-          '• customer aapko live track kar sake\n\n'
-          'Online rehte hue app background mein ho tab bhi location share hoti hai (notification dikhegi). Offline hote hi band ho jaati hai.',
+          'When you are Online, 8Speedy Partner uses your location to:\n\n'
+          '• show customer requests near you\n'
+          '• let the customer track you live\n\n'
+          'While Online, location is shared even when the app is in the background (a notification is shown). It stops as soon as you go Offline.',
         ),
         actions: <Widget>[
-          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Abhi nahi')),
+          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Not now')),
           FilledButton(
             style: FilledButton.styleFrom(minimumSize: const Size(100, 44)),
             onPressed: () => Navigator.pop(ctx, true),
@@ -132,7 +134,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
       final pos = await _location.currentPosition();
       if (!mounted) return;
       if (pos == null) {
-        _snack('GPS location nahi mili. Khuli jagah mein jaakar retry karein.');
+        _snack('Could not get your GPS location. Move to an open area and try again.');
         return;
       }
       await _api.setStatus(isOnline: true, lat: pos.latitude, lng: pos.longitude);
@@ -195,7 +197,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
       if (_firstLoadDone && fresh.isNotEmpty) {
         HapticFeedback.heavyImpact();
         SystemSound.play(SystemSoundType.alert);
-        _snack('🔔 ${fresh.length} nayi request aayi hai!');
+        _snack('🔔 ${fresh.length} new request(s) nearby!');
       }
 
       setState(() {
@@ -287,7 +289,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
       context: context,
       builder: (ctx) => AlertDialog(
         title: const Text('Logout?'),
-        content: const Text('Aap offline ho jayenge aur requests aana band ho jayengi.'),
+        content: const Text('You will go offline and stop receiving requests.'),
         actions: <Widget>[
           TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')),
           TextButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('Logout')),
@@ -314,7 +316,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     final p = widget.profile;
     return Scaffold(
       appBar: AppBar(
-        title: Text('Namaste, ${p.firstName}'),
+        title: Text('Hi, ${p.firstName}'),
         actions: <Widget>[
           IconButton(
             tooltip: 'My Jobs',
@@ -325,7 +327,11 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
           ),
           PopupMenuButton<String>(
             onSelected: (v) {
-              if (v == 'support') {
+              if (v == 'account') {
+                Navigator.of(context).push(
+                  MaterialPageRoute<void>(builder: (_) => AccountScreen(profile: widget.profile)),
+                );
+              } else if (v == 'support') {
                 launchUrl(
                   Uri.parse(PartnerConstants.whatsappSupportUrl),
                   mode: LaunchMode.externalApplication,
@@ -335,6 +341,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
               }
             },
             itemBuilder: (_) => const <PopupMenuEntry<String>>[
+              PopupMenuItem(value: 'account', child: Text('Account & Privacy')),
               PopupMenuItem(value: 'support', child: Text('WhatsApp Support')),
               PopupMenuItem(value: 'logout', child: Text('Logout')),
             ],
@@ -375,7 +382,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: <Widget>[
                   Text(
-                    _online ? 'Aap ONLINE hain' : 'Aap OFFLINE hain',
+                    _online ? 'You are ONLINE' : 'You are OFFLINE',
                     style: TextStyle(
                       fontWeight: FontWeight.w800,
                       fontSize: 16,
@@ -384,8 +391,8 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                   ),
                   Text(
                     _online
-                        ? 'Nearby requests yahan dikhengi'
-                        : 'Jobs paane ke liye Online jaayein',
+                        ? 'Nearby requests will appear here'
+                        : 'Go online to receive jobs',
                     style: TextStyle(fontSize: 12.5, color: Colors.blueGrey.shade600),
                   ),
                 ],
@@ -415,17 +422,17 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   Widget _locationBanner() {
     final (String text, String action, Future<bool> Function() open) = switch (_locationIssue) {
       LocationIssue.serviceOff => (
-          'Phone ka GPS / Location band hai.',
+          'Your phone\'s GPS / location is turned off.',
           'Turn on',
           Geolocator.openLocationSettings,
         ),
       LocationIssue.deniedForever => (
-          'Location permission blocked hai. Settings mein Allow karein.',
+          'Location permission is blocked. Allow it in Settings.',
           'Settings',
           Geolocator.openAppSettings,
         ),
       _ => (
-          'Online jaane ke liye location permission zaroori hai.',
+          'Location permission is required to go online.',
           'Retry',
           () async {
             await _goOnline();
@@ -456,23 +463,23 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
         Icon(Icons.power_settings_new_rounded, size: 84, color: Colors.blueGrey.shade300),
         const SizedBox(height: 16),
         const Text(
-          'Aap abhi offline hain',
+          'You are offline',
           textAlign: TextAlign.center,
           style: TextStyle(fontSize: 20, fontWeight: FontWeight.w800),
         ),
         const SizedBox(height: 8),
         Text(
-          'Upar wala switch ON karein. Aapke ${PartnerConstants.requestRadiusMeters ~/ 1000} km ke andar ki customer requests turant dikhengi.',
+          'Turn on the switch above. Customer requests within ${PartnerConstants.requestRadiusMeters ~/ 1000} km will appear instantly.',
           textAlign: TextAlign.center,
           style: TextStyle(color: Colors.blueGrey.shade600, height: 1.4),
         ),
         const SizedBox(height: 24),
         _tip(Icons.notifications_active_rounded,
-            'Online rehte hue app ko recent apps se swipe karke band na karein.'),
+            'While online, do not swipe the app away from recent apps.'),
         _tip(Icons.battery_saver_rounded,
-            'Battery saver mein 8Speedy Partner ko "Unrestricted" rakhein.'),
+            'Set 8Speedy Partner to "Unrestricted" in battery settings.'),
         _tip(Icons.pin_rounded,
-            'Kaam shuru karne se pehle customer se 4-digit Start OTP zaroor lein.'),
+            'Always take the customer\'s 4-digit Start OTP before starting work.'),
       ],
     );
   }
@@ -529,7 +536,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                   Icon(Icons.radar_rounded, size: 56, color: Colors.blueGrey.shade300),
                   const SizedBox(height: 10),
                   const Text(
-                    'Abhi koi request nahi hai.\nNayi request aate hi phone vibrate karega.',
+                    'No requests right now.\nYour phone will vibrate when a new request arrives.',
                     textAlign: TextAlign.center,
                   ),
                 ],
@@ -610,17 +617,26 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
           children: <Widget>[
             Row(
               children: <Widget>[
-                CircleAvatar(
-                  backgroundColor: PartnerConstants.primaryColor.withValues(alpha: 0.12),
-                  child: Icon(vehicle.icon, color: PartnerConstants.primaryColor),
+                SizedBox(
+                  width: 72,
+                  child: VehicleImage(
+                    category: r.vehicleType,
+                    bodyType: r.vehicleBodyType,
+                    height: 44,
+                  ),
                 ),
-                const SizedBox(width: 12),
+                const SizedBox(width: 10),
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: <Widget>[
-                      Text(vehicle.title,
-                          style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 15)),
+                      Text(vehicleName(r.vehicleLabel, r.vehicleType),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 15)),
+                      if (r.vehicleLabel != null)
+                        Text(vehicle.title,
+                            style: TextStyle(fontSize: 12, color: Colors.blueGrey.shade500)),
                       Text(Fmt.ago(r.createdAt),
                           style: TextStyle(fontSize: 12, color: Colors.blueGrey.shade500)),
                     ],

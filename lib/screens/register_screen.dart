@@ -2,10 +2,13 @@ import 'package:material_ui/material_ui.dart';
 
 import '../core/constants.dart';
 import '../core/error_helper.dart';
+import '../core/legal_content.dart';
 import '../models/models.dart';
 import '../services/auth_service.dart';
 import '../services/partner_service.dart';
 import 'account_gate.dart';
+import 'account_screen.dart';
+import 'legal_screen.dart';
 import 'home_screen.dart';
 import 'login_screen.dart';
 import 'pending_screen.dart';
@@ -38,15 +41,15 @@ class _RegisterScreenState extends State<RegisterScreen> {
     FocusScope.of(context).unfocus();
     final name = _nameController.text.trim();
     if (name.length < 2) {
-      setState(() => _error = 'Apna poora naam daalein.');
+      setState(() => _error = 'Please enter your full name.');
       return;
     }
     if (_specialties.isEmpty) {
-      setState(() => _error = 'Kam se kam ek vehicle type chunein.');
+      setState(() => _error = 'Select at least one vehicle type.');
       return;
     }
     if (!_agreed) {
-      setState(() => _error = 'Partner terms accept karein.');
+      setState(() => _error = 'Please accept the Partner Terms.');
       return;
     }
     setState(() {
@@ -86,9 +89,13 @@ class _RegisterScreenState extends State<RegisterScreen> {
       appBar: AppBar(
         title: const Text('Partner Registration'),
         actions: <Widget>[
-          TextButton(
-            onPressed: _loading ? null : _logout,
-            child: const Text('Logout', style: TextStyle(color: Colors.white)),
+          PopupMenuButton<String>(
+            enabled: !_loading,
+            onSelected: (v) => v == 'delete' ? confirmAndDeleteAccount(context) : _logout(),
+            itemBuilder: (_) => const <PopupMenuEntry<String>>[
+              PopupMenuItem(value: 'logout', child: Text('Logout')),
+              PopupMenuItem(value: 'delete', child: Text('Delete account')),
+            ],
           ),
         ],
       ),
@@ -97,7 +104,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
           padding: const EdgeInsets.all(20),
           children: <Widget>[
             const Text(
-              'Apni details bharein. Hamari team verify karke aapka account activate karegi (aam taur par 24 ghante mein).',
+              'Fill in your details. Our team will verify and activate your account (usually within 24 hours).',
               style: TextStyle(height: 1.4),
             ),
             const SizedBox(height: 20),
@@ -111,7 +118,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
               textCapitalization: TextCapitalization.words,
               maxLength: 60,
               decoration: const InputDecoration(
-                labelText: 'Poora naam *',
+                labelText: 'Full name *',
                 prefixIcon: Icon(Icons.person_rounded),
                 counterText: '',
               ),
@@ -123,14 +130,14 @@ class _RegisterScreenState extends State<RegisterScreen> {
               textCapitalization: TextCapitalization.words,
               maxLength: 80,
               decoration: const InputDecoration(
-                labelText: 'Shop / Garage ka naam (optional)',
+                labelText: 'Shop / garage name (optional)',
                 prefixIcon: Icon(Icons.storefront_rounded),
                 counterText: '',
               ),
             ),
             const SizedBox(height: 20),
             const Text(
-              'Aap kaun si gaadiyan repair karte hain? *',
+              'Which vehicles do you repair? *',
               style: TextStyle(fontWeight: FontWeight.w700),
             ),
             const SizedBox(height: 10),
@@ -162,11 +169,23 @@ class _RegisterScreenState extends State<RegisterScreen> {
               controlAffinity: ListTileControlAffinity.leading,
               onChanged: _loading ? null : (v) => setState(() => _agreed = v ?? false),
               title: const Text(
-                'Main customer se sirf fair charge lunga, start OTP ke bina kaam shuru nahi karunga, aur online rehte hue meri location share hogi.',
+                'I will charge customers fairly, never start work without the Start OTP, and I agree to share my location while online.',
                 style: TextStyle(fontSize: 13),
               ),
             ),
-            const SizedBox(height: 16),
+            Align(
+              alignment: Alignment.centerLeft,
+              child: TextButton.icon(
+                onPressed: () => Navigator.of(context).push(
+                  MaterialPageRoute<void>(
+                    builder: (_) => const LegalScreen(doc: LegalContent.partnerTerms),
+                  ),
+                ),
+                icon: const Icon(Icons.description_outlined, size: 16),
+                label: const Text('Read Partner Terms'),
+              ),
+            ),
+            const SizedBox(height: 8),
             FilledButton(
               onPressed: _loading ? null : _submit,
               child: _loading

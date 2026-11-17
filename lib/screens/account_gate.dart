@@ -89,7 +89,7 @@ class _AccountGateScreenState extends State<AccountGateScreen> {
                   children: <Widget>[
                     CircularProgressIndicator(),
                     SizedBox(height: 16),
-                    Text('Account check ho raha hai...'),
+                    Text('Checking your account...'),
                   ],
                 )
               : Column(

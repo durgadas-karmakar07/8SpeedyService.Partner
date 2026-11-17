@@ -2,6 +2,7 @@ import 'package:flutter_test/flutter_test.dart';
 
 import 'package:speedy_partner/core/constants.dart';
 import 'package:speedy_partner/core/error_helper.dart';
+import 'package:speedy_partner/core/vehicle_view.dart';
 import 'package:speedy_partner/models/models.dart';
 import 'package:speedy_partner/services/auth_service.dart';
 
@@ -65,5 +66,16 @@ void main() {
     expect(PartnerConstants.isVersionOlder('1.2.0', '1.0.9'), isFalse);
     expect(AuthService.normalizeIndianPhone('98765 43210'), '+919876543210');
     expect(AuthService.isValidIndianMobile('5876543210'), isFalse);
+  });
+
+  test('vehicle name and plate from booking label', () {
+    expect(vehicleName('Honda Activa 6G • WB38AB1234', 'two_wheeler'), 'Honda Activa 6G');
+    expect(vehiclePlate('Honda Activa 6G • WB38AB1234'), 'WB38AB1234');
+    expect(vehicleName(null, 'four_wheeler'), 'Car / SUV');
+    expect(vehiclePlate('Honda Activa 6G'), isNull);
+    expect(
+      PartnerConstants.vehicleAsset(bodyType: 'suv', category: 'four_wheeler'),
+      'assets/vehicles/suv.png',
+    );
   });
 }

@@ -8,6 +8,7 @@ import 'package:url_launcher/url_launcher.dart';
 
 import '../core/constants.dart';
 import '../core/error_helper.dart';
+import '../core/vehicle_view.dart';
 import '../models/models.dart';
 import '../services/location_service.dart';
 import '../services/partner_service.dart';
@@ -70,7 +71,7 @@ class _JobScreenState extends State<JobScreen> with WidgetsBindingObserver {
     }
     final issue = await _location.ensurePermission();
     if (issue != LocationIssue.none) {
-      _snack('Location permission dein — customer aapko live track karta hai.');
+      _snack('Please allow location — the customer tracks you live.');
       return;
     }
     final pos = await _location.currentPosition();
@@ -110,9 +111,9 @@ class _JobScreenState extends State<JobScreen> with WidgetsBindingObserver {
     if (!mounted) return;
 
     final message = switch (status) {
-      PartnerConstants.statusCancelled => 'Customer ne yeh booking cancel kar di hai.',
-      PartnerConstants.statusCompleted => 'Yeh job complete ho chuki hai.',
-      _ => 'Yeh job ab aapke paas nahi hai.',
+      PartnerConstants.statusCancelled => 'The customer has cancelled this booking.',
+      PartnerConstants.statusCompleted => 'This job is already completed.',
+      _ => 'This job is no longer assigned to you.',
     };
     HapticFeedback.heavyImpact();
     await showDialog<void>(
@@ -168,13 +169,13 @@ class _JobScreenState extends State<JobScreen> with WidgetsBindingObserver {
         await _api.markArrived(_job.bookingId);
         final job = await _api.getActiveJob();
         if (job != null && mounted) setState(() => _job = job);
-        _snack('Customer ko bata diya gaya ki aap pahunch gaye hain.');
+        _snack('The customer has been told that you have arrived.');
       });
 
   Future<void> _startJob() async {
     final otp = _otpController.text.trim();
     if (!RegExp(r'^\d{4}$').hasMatch(otp)) {
-      setState(() => _otpError = 'Customer ke app mein dikh raha 4-digit OTP daalein.');
+      setState(() => _otpError = 'Enter the 4-digit OTP shown in the customer\'s app.');
       return;
     }
     FocusScope.of(context).unfocus();
@@ -187,12 +188,12 @@ class _JobScreenState extends State<JobScreen> with WidgetsBindingObserver {
         _otpController.clear();
         final job = await _api.getActiveJob();
         if (job != null && mounted) setState(() => _job = job);
-        _snack('OTP verified. Kaam shuru karein! 🔧');
+        _snack('OTP verified. You can start the work! 🔧');
       } else {
         final left = res.attemptsLeft;
         setState(() => _otpError = [
-              res.message ?? 'Galat OTP.',
-              if (left != null) '$left try baaki.',
+              res.message ?? 'Wrong OTP.',
+              if (left != null) '$left attempts left.',
             ].join(' '));
       }
     });
@@ -204,17 +205,17 @@ class _JobScreenState extends State<JobScreen> with WidgetsBindingObserver {
       builder: (ctx) => AlertDialog(
         title: const Text('Job complete?'),
         content: const Text(
-          'Kya gaadi theek ho gayi aur aapne customer se repair ka payment le liya hai?',
+          'Is the vehicle fixed and have you collected the repair payment from the customer?',
         ),
         actions: <Widget>[
-          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Nahi')),
+          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('No')),
           FilledButton(
             style: FilledButton.styleFrom(
               backgroundColor: PartnerConstants.successColor,
               minimumSize: const Size(120, 44),
             ),
             onPressed: () => Navigator.pop(ctx, true),
-            child: const Text('Haan, Complete'),
+            child: const Text('Yes, complete'),
           ),
         ],
       ),
@@ -233,8 +234,8 @@ class _JobScreenState extends State<JobScreen> with WidgetsBindingObserver {
         builder: (ctx) => AlertDialog(
           icon: const Icon(Icons.verified_rounded,
               color: PartnerConstants.successColor, size: 56),
-          title: const Text('Shabash! Job complete 🎉'),
-          content: const Text('Customer ab aapko rating dega. Achhi rating = zyada jobs.'),
+          title: const Text('Great job! Job completed 🎉'),
+          content: const Text('The customer will now rate you. Better ratings mean more jobs.'),
           actions: <Widget>[
             FilledButton(
               style: FilledButton.styleFrom(minimumSize: const Size(140, 44)),
@@ -250,11 +251,11 @@ class _JobScreenState extends State<JobScreen> with WidgetsBindingObserver {
 
   Future<void> _release() async {
     const reasons = <String>[
-      'Meri gaadi kharab ho gayi',
-      'Location bahut door hai',
-      'Customer phone nahi utha raha',
-      'Zaroori kaam / emergency',
-      'Yeh repair main nahi kar sakta',
+      'My vehicle broke down',
+      'The location is too far',
+      'Customer is not answering the phone',
+      'Personal emergency',
+      'I cannot do this repair',
     ];
     final reason = await showModalBottomSheet<String>(
       context: context,
@@ -266,7 +267,7 @@ class _JobScreenState extends State<JobScreen> with WidgetsBindingObserver {
             const Padding(
               padding: EdgeInsets.fromLTRB(20, 0, 20, 8),
               child: Text(
-                'Job chhodne ka reason chunein. Booking dusre mechanic ko chali jayegi. Baar-baar job chhodne se account suspend ho sakta hai.',
+                'Choose a reason for releasing the job. The booking will go to another mechanic. Releasing jobs often can get your account suspended.',
                 style: TextStyle(fontSize: 13),
               ),
             ),
@@ -289,7 +290,7 @@ class _JobScreenState extends State<JobScreen> with WidgetsBindingObserver {
       _closed = true;
       _pollTimer?.cancel();
       if (!mounted) return;
-      _snack('Job release kar di gayi.');
+      _snack('Job released.');
       _goHome();
     });
   }
@@ -297,11 +298,11 @@ class _JobScreenState extends State<JobScreen> with WidgetsBindingObserver {
   Future<void> _callCustomer() async {
     final phone = _job.customerPhone;
     if (phone == null) {
-      _snack('Customer ka number available nahi hai.');
+      _snack('Customer\'s number is not available.');
       return;
     }
     final ok = await launchUrl(Uri(scheme: 'tel', path: phone));
-    if (!ok) _snack('Call nahi lag paaya. Number: $phone');
+    if (!ok) _snack('Could not place the call. Number: $phone');
   }
 
   Future<void> _navigate() async {
@@ -309,7 +310,7 @@ class _JobScreenState extends State<JobScreen> with WidgetsBindingObserver {
       'https://www.google.com/maps/dir/?api=1&destination=${_job.lat},${_job.lng}&travelmode=driving',
     );
     final ok = await launchUrl(uri, mode: LaunchMode.externalApplication);
-    if (!ok) _snack('Google Maps nahi khul paaya.');
+    if (!ok) _snack('Could not open Google Maps.');
   }
 
   void _snack(String text) {
@@ -486,9 +487,42 @@ class _JobScreenState extends State<JobScreen> with WidgetsBindingObserver {
             children: <Widget>[
               Row(
                 children: <Widget>[
-                  Icon(vehicle.icon, color: PartnerConstants.primaryColor),
-                  const SizedBox(width: 8),
-                  Text(vehicle.title, style: const TextStyle(fontWeight: FontWeight.w800)),
+                  SizedBox(
+                    width: 88,
+                    child: VehicleImage(
+                      category: _job.vehicleType,
+                      bodyType: _job.vehicleBodyType,
+                      height: 52,
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: <Widget>[
+                        Text(
+                          vehicleName(_job.vehicleLabel, _job.vehicleType),
+                          style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 15.5),
+                        ),
+                        Text(vehicle.title,
+                            style: TextStyle(fontSize: 12, color: Colors.blueGrey.shade600)),
+                        if (vehiclePlate(_job.vehicleLabel) != null)
+                          Container(
+                            margin: const EdgeInsets.only(top: 4),
+                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFFFEF9C3),
+                              borderRadius: BorderRadius.circular(6),
+                              border: Border.all(color: PartnerConstants.darkColor, width: 1.2),
+                            ),
+                            child: Text(
+                              vehiclePlate(_job.vehicleLabel)!,
+                              style: const TextStyle(fontWeight: FontWeight.w700, letterSpacing: 1.2),
+                            ),
+                          ),
+                      ],
+                    ),
+                  ),
                 ],
               ),
               const SizedBox(height: 8),
@@ -523,12 +557,12 @@ class _JobScreenState extends State<JobScreen> with WidgetsBindingObserver {
                   onPressed: _navigate,
                   style: OutlinedButton.styleFrom(minimumSize: const Size.fromHeight(46)),
                   icon: const Icon(Icons.navigation_rounded),
-                  label: const Text('Google Maps se navigate karein'),
+                  label: const Text('Navigate with Google Maps'),
                 ),
               ],
               const SizedBox(height: 10),
               Text(
-                'Minimum visit charge: ₹${_job.minVisitCharge} (repair ka charge alag, customer se seedha lein)',
+                'Minimum visit charge: ₹${_job.minVisitCharge} (repair charges are separate — collect directly from the customer)',
                 style: TextStyle(fontSize: 12, color: Colors.blueGrey.shade600),
               ),
             ],
@@ -541,7 +575,7 @@ class _JobScreenState extends State<JobScreen> with WidgetsBindingObserver {
           TextButton(
             onPressed: _busy ? null : _release,
             style: TextButton.styleFrom(foregroundColor: PartnerConstants.dangerColor),
-            child: const Text('Nahi pahunch sakta — job chhodein'),
+            child: const Text('Can\'t make it — release job'),
           ),
         ],
       ],
@@ -562,13 +596,13 @@ class _JobScreenState extends State<JobScreen> with WidgetsBindingObserver {
         return <Widget>[
           FilledButton(
             onPressed: _busy ? null : _markArrived,
-            child: busyChild('Main pahunch gaya (Arrived)'),
+            child: busyChild('I have arrived'),
           ),
         ];
       case PartnerConstants.statusArrived:
         return <Widget>[
           const Text(
-            'Customer se 4-digit Start OTP maangein',
+            'Ask the customer for the 4-digit Start OTP',
             style: TextStyle(fontWeight: FontWeight.w800),
           ),
           const SizedBox(height: 8),
@@ -590,7 +624,7 @@ class _JobScreenState extends State<JobScreen> with WidgetsBindingObserver {
           const SizedBox(height: 10),
           FilledButton(
             onPressed: _busy ? null : _startJob,
-            child: busyChild('OTP verify karke kaam shuru karein'),
+            child: busyChild('Verify OTP & start work'),
           ),
         ];
       case PartnerConstants.statusInProgress:
@@ -605,7 +639,7 @@ class _JobScreenState extends State<JobScreen> with WidgetsBindingObserver {
               children: <Widget>[
                 Icon(Icons.build_rounded, color: PartnerConstants.successColor),
                 SizedBox(width: 10),
-                Expanded(child: Text('Kaam chal raha hai. Poora hone par niche tap karein.')),
+                Expanded(child: Text('Work in progress. Tap below when the job is done.')),
               ],
             ),
           ),
