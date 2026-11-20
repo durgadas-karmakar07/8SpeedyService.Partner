@@ -116,9 +116,6 @@ jobs:
           mkdir -p dist
           cp build/app/outputs/flutter-apk/app-release.apk "dist/${APP_NAME}-test.apk"
 
-      - name: APK security & Play checks
-        run: bash .github/scripts/apk_checks.sh "dist/${APP_NAME}-test.apk" 2>&1 | tee ci/ci-apk-checks.txt
-
       - uses: actions/upload-artifact@v4
         with:
           name: apk
@@ -130,6 +127,9 @@ jobs:
           name: debug-symbols
           path: build/symbols
           retention-days: 30
+
+      - name: APK security & Play checks
+        run: bash .github/scripts/apk_checks.sh "dist/${APP_NAME}-test.apk" 2>&1 | tee ci/ci-apk-checks.txt
 
       - name: Publish APK
         env:

@@ -48,6 +48,7 @@ class LegalContent {
             '• Precise location — your pickup point, only when you book or tap "Locate me".\n'
             '• Vehicle details — type, brand, model, and optional number plate and fuel. The number plate is shown to the mechanic only after they accept.\n'
             '• Booking details — issue, address, status, rating and review.\n'
+            '• Voice note (optional) — a short recording describing the problem, only if the customer taps the microphone. Only partners who can see the request, and the one who accepts it, can play it.\n'
             '• Payment status — Razorpay order and payment IDs. Card, UPI and bank details are handled by Razorpay; we never see or store them.\n'
             'Partners: name, phone, shop details, vehicle types repaired, and live location while Online or on a job (also in the background, with a visible notification).',
       ),
@@ -60,7 +61,7 @@ class LegalContent {
       ),
       LegalSection(
         'How long we keep data',
-        'Account data is kept while your account is active. When you delete your account, your name, phone number, saved vehicles and location are deleted or anonymised immediately. Booking and payment records are kept without your identity for up to 8 years for tax and accounting.',
+        'Account data is kept while your account is active. When you delete your account, your name, phone number, saved vehicles, voice notes and location are deleted or anonymised immediately. Booking and payment records are kept without your identity for up to 8 years for tax and accounting.',
       ),
       LegalSection(
         'Your rights',

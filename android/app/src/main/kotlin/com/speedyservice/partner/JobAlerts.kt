@@ -13,6 +13,7 @@ import android.media.AudioAttributes
 import android.media.AudioManager
 import android.net.Uri
 import android.os.Build
+import java.util.UUID
 
 /**
  * Call-style "new job request" notification.
@@ -70,9 +71,15 @@ class JobAlerts(private val context: Context) {
         if (!notificationsAllowed()) return false
         ensureChannel()
 
+        // One-time token: MainActivity is exported (launcher), so other apps
+        // could send it this action. Only intents carrying the token we just
+        // created are treated as a real job alert.
+        val token = UUID.randomUUID().toString()
+        activeToken = token
         val intent = Intent(context, MainActivity::class.java).apply {
             action = ACTION_INCOMING
             putExtra(EXTRA_BOOKING_ID, bookingId)
+            putExtra(EXTRA_TOKEN, token)
             addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_SINGLE_TOP)
         }
         val pending = PendingIntent.getActivity(
@@ -126,8 +133,13 @@ class JobAlerts(private val context: Context) {
         const val REQUEST_CODE = 8801
         const val ACTION_INCOMING = "com.speedyservice.partner.INCOMING_REQUEST"
         const val EXTRA_BOOKING_ID = "speedy_booking_id"
+        const val EXTRA_TOKEN = "speedy_alert_token"
         const val TIMEOUT_MS = 45_000L
         const val BRAND_COLOR = 0xFFFF5722.toInt()
         val VIBRATION = longArrayOf(0, 700, 500, 700, 1200)
+
+        /** Token of the alert currently showing (process memory only). */
+        @Volatile
+        var activeToken: String? = null
     }
 }

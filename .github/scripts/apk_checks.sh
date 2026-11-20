@@ -23,13 +23,9 @@ echo; echo "== 16 KB page-size alignment (required by Play for Android 15+ devic
 if "$BT/zipalign" -c -P 16 -v 4 "$APK" > /tmp/zipalign.txt 2>&1; then echo "OK: 16 KB aligned"; else echo "WARN: zipalign -P 16 check failed"; tail -5 /tmp/zipalign.txt; fi
 
 echo; echo "== Secret scan (must find nothing)"
+python3 "$(dirname "$0")/secret_scan.py" "$APK" || FAIL=1
 TMP=$(mktemp -d)
-unzip -q -o "$APK" -d "$TMP"
-PATTERNS='sb_secret_|service_role|rzp_live_|RAZORPAY_KEY_SECRET|RAZORPAY_WEBHOOK_SECRET|BEGIN (RSA |EC )?PRIVATE KEY|SUPABASE_SERVICE_ROLE_KEY|AKIA[0-9A-Z]{16}'
-HITS=$(grep -r -a -l -E "$PATTERNS" "$TMP" 2>/dev/null || true)
-if [ -n "$HITS" ]; then echo "FAIL: possible secret found in:"; echo "$HITS"; FAIL=1; else echo "OK: no secret keys inside the APK"; fi
-# The publishable key is expected (it is public by design, protected by RLS).
-if grep -r -a -q -E 'sb_publishable_|eyJhbGciOi' "$TMP"; then echo "INFO: Supabase publishable key present (expected, public by design)"; fi
+unzip -q -o "$APK" 'lib/arm64-v8a/libapp.so' -d "$TMP" 2>/dev/null || true
 
 echo; echo "== Dart code obfuscation"
 if strings "$TMP/lib/arm64-v8a/libapp.so" 2>/dev/null | grep -q -E 'IssueSummaryScreen|PartnerService|HomeScreen'; then

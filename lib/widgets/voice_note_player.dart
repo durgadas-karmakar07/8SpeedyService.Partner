@@ -216,17 +216,33 @@ class _VoiceNotePlayerState extends State<VoiceNotePlayer> {
                         ),
                       ),
                       const SizedBox(height: 2),
-                      Text(
-                        _state == _PlayState.error
-                            ? 'Could not play. Tap to retry.'
-                            : '🎤 Customer voice note',
-                        style: TextStyle(
-                          fontSize: 11.5,
-                          color: _state == _PlayState.error
-                              ? PartnerConstants.dangerColor
-                              : fg.withValues(alpha: 0.7),
-                          fontWeight: FontWeight.w500,
-                        ),
+                      Row(
+                        children: <Widget>[
+                          Icon(
+                            _state == _PlayState.error ? Icons.error_outline_rounded : Icons.mic_rounded,
+                            size: 13,
+                            color: _state == _PlayState.error
+                                ? PartnerConstants.dangerColor
+                                : fg.withValues(alpha: 0.7),
+                          ),
+                          const SizedBox(width: 3),
+                          Flexible(
+                            child: Text(
+                              _state == _PlayState.error
+                                  ? 'Could not play. Tap to retry.'
+                                  : 'Customer voice note',
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: TextStyle(
+                                fontSize: 11.5,
+                                color: _state == _PlayState.error
+                                    ? PartnerConstants.dangerColor
+                                    : fg.withValues(alpha: 0.7),
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
+                          ),
+                        ],
                       ),
                     ],
                   ),
