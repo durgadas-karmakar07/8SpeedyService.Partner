@@ -89,11 +89,23 @@ class PartnerService {
   // Requests & jobs
   // ---------------------------------------------------------------------------
 
+  bool _openRequestsV3Missing = false;
+
+  /// Open requests near the mechanic (v3 adds the customer's voice note;
+  /// falls back to v2 if the server has not been updated yet).
   Future<List<OpenRequest>> getOpenRequests(int radiusMeters) async {
-    final data = await _client.rpc<dynamic>(
-      'mechanic_get_open_requests_v2',
-      params: <String, dynamic>{'p_radius_meters': radiusMeters},
-    );
+    final params = <String, dynamic>{'p_radius_meters': radiusMeters};
+    if (!_openRequestsV3Missing) {
+      try {
+        final data = await _client.rpc<dynamic>('mechanic_get_open_requests_v3', params: params);
+        return _asList(data).map(OpenRequest.fromJson).toList();
+      } on PostgrestException catch (e) {
+        // PGRST202 = function not found (older database).
+        if (e.code != 'PGRST202') rethrow;
+        _openRequestsV3Missing = true;
+      }
+    }
+    final data = await _client.rpc<dynamic>('mechanic_get_open_requests_v2', params: params);
     return _asList(data).map(OpenRequest.fromJson).toList();
   }
 

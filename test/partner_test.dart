@@ -78,4 +78,37 @@ void main() {
       'assets/vehicles/suv.png',
     );
   });
+
+  test('OpenRequest and ActiveJob read the customer voice note', () {
+    final r = OpenRequest.fromJson(<String, dynamic>{
+      'booking_id': 'b2',
+      'vehicle_type': 'two_wheeler',
+      'issue_tags': <String>[],
+      'pickup_address': 'City Centre',
+      'pickup_lat': 23.5,
+      'pickup_lng': 87.3,
+      'distance_meters': 900,
+      'voice_note_path': 'uid/b2_1700000000000.m4a',
+      'voice_note_seconds': '12',
+    });
+    expect(r.voiceNotePath, 'uid/b2_1700000000000.m4a');
+    expect(r.voiceNoteSeconds, 12);
+
+    final noVoice = OpenRequest.fromJson(<String, dynamic>{
+      'booking_id': 'b3',
+      'issue_tags': <String>[],
+      'voice_note_path': '',
+    });
+    expect(noVoice.voiceNotePath, isNull);
+    expect(noVoice.voiceNoteSeconds, isNull);
+
+    final job = ActiveJob.fromJson(<String, dynamic>{
+      'booking_id': 'b2',
+      'issue_tags': <String>[],
+      'voice_note_path': 'uid/b2_1700000000000.m4a',
+      'voice_note_seconds': 12,
+    });
+    expect(job.voiceNotePath, isNotNull);
+    expect(job.voiceNoteSeconds, 12);
+  });
 }

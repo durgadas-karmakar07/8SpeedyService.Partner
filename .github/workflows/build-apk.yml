@@ -1,0 +1,199 @@
+# Builds a shareable test APK in the cloud on every push.
+#
+#   main      -> release "test-build"    (stable link for friends / testers)
+#   claude/** -> release "preview-build" (work in progress)
+#
+# Download: https://github.com/<owner>/<repo>/releases/download/test-build/<APP_NAME>-test.apk
+#
+# The APK is signed with a CI test key (kept in the Actions cache) so new test
+# builds install over old ones. Play Store bundles are still built on your PC
+# with your private upload key (see PRODUCTION_SETUP.md).
+#
+# Backend config: set repository secrets SUPABASE_URL + SUPABASE_ANON_KEY
+# (Settings -> Secrets and variables -> Actions). Without them the project's
+# PUBLISHABLE key is used — it is public by design (it ships inside every APK)
+# and all data is protected by Row Level Security. Never put a secret /
+# service_role key here.
+
+name: Build test APK
+
+on:
+  push:
+    branches: [main, 'claude/**']
+    paths-ignore: ['**.md', 'store/**']
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: build-apk-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  APP_NAME: 8Speedy-Partner
+  APP_PACKAGE: com.speedyservice.partner
+  DEFAULT_SUPABASE_URL: https://mzxcbhiemdkhalslxwid.supabase.co
+  DEFAULT_SUPABASE_PUBLISHABLE_KEY: sb_publishable_QN9WHWwJok8jct-WS8_Mjw_L-ptTo7C
+
+defaults:
+  run:
+    shell: bash
+
+jobs:
+  apk:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    outputs:
+      release: ${{ steps.meta.outputs.release }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - id: meta
+        run: |
+          if [ "$GITHUB_REF_NAME" = "main" ]; then echo "release=test-build" >> "$GITHUB_OUTPUT"; else echo "release=preview-build" >> "$GITHUB_OUTPUT"; fi
+          echo "version=$(grep '^version:' pubspec.yaml | awk '{print $2}')" >> "$GITHUB_OUTPUT"
+          mkdir -p ci
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+
+      - run: flutter --version | tee ci/ci-flutter-version.txt
+
+      - name: Backend config (publishable values only)
+        env:
+          SECRET_URL: ${{ secrets.SUPABASE_URL }}
+          SECRET_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
+        run: |
+          mkdir -p env
+          URL="${SECRET_URL:-$DEFAULT_SUPABASE_URL}"
+          KEY="${SECRET_KEY:-$DEFAULT_SUPABASE_PUBLISHABLE_KEY}"
+          printf '{\n  "SUPABASE_URL": "%s",\n  "SUPABASE_ANON_KEY": "%s"\n}\n' "$URL" "$KEY" > env/ci.json
+
+      - name: Dependencies
+        run: flutter pub get 2>&1 | tee ci/ci-pub-get.txt
+
+      - name: Analyze
+        run: flutter analyze --no-fatal-infos --no-fatal-warnings 2>&1 | tee ci/ci-analyze.txt
+
+      - name: Unit & widget tests
+        run: flutter test 2>&1 | tee ci/ci-test.txt
+
+      - name: UI preview images
+        continue-on-error: true
+        run: |
+          if [ -d test_preview ]; then
+            flutter test test_preview --update-goldens 2>&1 | tee ci/ci-preview.txt
+            find test_preview -name '*.png' -exec cp {} ci/ \;
+          fi
+
+      - name: Restore CI test signing key
+        uses: actions/cache@v4
+        with:
+          path: ~/.android/debug.keystore
+          key: speedy-test-keystore-v1
+
+      - name: Create CI test signing key (first run only)
+        run: |
+          mkdir -p ~/.android
+          if [ ! -f ~/.android/debug.keystore ]; then
+            keytool -genkeypair -keystore ~/.android/debug.keystore -storepass android \
+              -alias androiddebugkey -keypass android -keyalg RSA -keysize 2048 -validity 10000 \
+              -dname "CN=8SpeedyService Test,O=8SpeedyService,C=IN"
+          fi
+
+      - name: Build release APK
+        run: |
+          flutter build apk --release --obfuscate --split-debug-info=build/symbols \
+            --dart-define-from-file=env/ci.json 2>&1 | tee ci/ci-build.txt
+          mkdir -p dist
+          cp build/app/outputs/flutter-apk/app-release.apk "dist/${APP_NAME}-test.apk"
+
+      - name: APK security & Play checks
+        run: bash .github/scripts/apk_checks.sh "dist/${APP_NAME}-test.apk" 2>&1 | tee ci/ci-apk-checks.txt
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: apk
+          path: dist/*.apk
+          retention-days: 14
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: debug-symbols
+          path: build/symbols
+          retention-days: 30
+
+      - name: Publish APK
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REL: ${{ steps.meta.outputs.release }}
+          VER: ${{ steps.meta.outputs.version }}
+        run: |
+          SHA=$(sha256sum "dist/${APP_NAME}-test.apk" | cut -d' ' -f1)
+          gh release delete "$REL" --yes --cleanup-tag 2>/dev/null || true
+          gh release create "$REL" "dist/${APP_NAME}-test.apk" --prerelease --target "$GITHUB_SHA" \
+            --title "${APP_NAME} test build ${VER} (#${GITHUB_RUN_NUMBER})" \
+            --notes "Test APK for sideloading on Android phones (not the Play Store build).
+          Commit: ${GITHUB_SHA::7} — built $(date -u '+%d %b %Y %H:%M UTC')
+          SHA-256: ${SHA}
+
+          Install: open this link on the phone -> download -> allow 'Install unknown apps' for your browser -> Install."
+
+      - name: Publish CI logs
+        if: always()
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REL: ${{ steps.meta.outputs.release }}
+        run: |
+          TAG="ci-logs-${REL}"
+          gh release delete "$TAG" --yes --cleanup-tag 2>/dev/null || true
+          ls ci/ || true
+          gh release create "$TAG" ci/* --prerelease --target "$GITHUB_SHA" \
+            --title "CI logs (${REL}) #${GITHUB_RUN_NUMBER}" --notes "Build ${{ job.status }} for ${GITHUB_SHA::7}" || true
+
+  smoke:
+    needs: apk
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: apk
+          path: dist
+
+      - name: Enable KVM
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+
+      - name: Run on Android 14 emulator
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 34
+          target: google_apis
+          arch: x86_64
+          profile: pixel_6
+          disable-animations: true
+          emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none
+          script: bash .github/scripts/smoke.sh dist/${{ env.APP_NAME }}-test.apk ${{ env.APP_PACKAGE }}
+
+      - name: Upload screenshots
+        if: always()
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ci-logs-${{ needs.apk.outputs.release }}
+        run: |
+          cd smoke 2>/dev/null || exit 0
+          for f in *; do mv "$f" "smoke-$f"; done
+          gh release upload "$TAG" smoke-* --clobber -R "$GITHUB_REPOSITORY" || true
