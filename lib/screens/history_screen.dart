@@ -97,7 +97,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
             if (_loading && _stats == null)
               const Padding(
                 padding: EdgeInsets.all(40),
-                child: const Center(child: RoadLoader(messages: <String>['Loading your jobs…'])),
+                child: Center(child: RoadLoader(messages: <String>['Loading your jobs…'])),
               ),
             if (_stats != null) _statsGrid(_stats!),
             const SizedBox(height: 20),

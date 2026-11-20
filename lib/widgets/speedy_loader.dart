@@ -81,7 +81,9 @@ class _RoadLoaderState extends State<RoadLoader> with SingleTickerProviderStateM
   @override
   Widget build(BuildContext context) {
     final w = widget.width;
-    final h = w * 0.66;
+    final h = w * _GaugePainter.heightFactor;
+    final r = w * _GaugePainter.radiusFactor;
+    final cy = r * _GaugePainter.centerFactor;
     return Semantics(
       label: widget.messages.isEmpty ? 'Loading' : widget.messages[_msg],
       child: Column(
@@ -108,7 +110,7 @@ class _RoadLoaderState extends State<RoadLoader> with SingleTickerProviderStateM
                       ),
                     ),
                     Positioned(
-                      bottom: h * 0.02,
+                      top: cy + r * 0.20,
                       child: Column(
                         mainAxisSize: MainAxisSize.min,
                         children: <Widget>[
@@ -116,7 +118,7 @@ class _RoadLoaderState extends State<RoadLoader> with SingleTickerProviderStateM
                             '${(v * 120).round()}',
                             style: TextStyle(
                               color: widget.color,
-                              fontSize: w * 0.12,
+                              fontSize: w * 0.11,
                               fontWeight: FontWeight.w800,
                               height: 1,
                               fontFeatures: const <FontFeature>[FontFeature.tabularFigures()],
@@ -126,7 +128,7 @@ class _RoadLoaderState extends State<RoadLoader> with SingleTickerProviderStateM
                             'km/h',
                             style: TextStyle(
                               color: widget.color.withValues(alpha: 0.55),
-                              fontSize: w * 0.05,
+                              fontSize: w * 0.048,
                               fontWeight: FontWeight.w600,
                             ),
                           ),
@@ -134,7 +136,7 @@ class _RoadLoaderState extends State<RoadLoader> with SingleTickerProviderStateM
                       ),
                     ),
                     Positioned(
-                      top: h * 0.30,
+                      top: cy - r * 0.62 - w * 0.065,
                       child: Transform.translate(
                         offset: Offset(0, -2 * math.sin(_c.value * math.pi * 8).abs() * v),
                         child: child,
@@ -145,11 +147,11 @@ class _RoadLoaderState extends State<RoadLoader> with SingleTickerProviderStateM
               },
               child: Image.asset(
                 widget.asset,
-                height: h * 0.22,
+                height: w * 0.13,
                 fit: BoxFit.contain,
                 errorBuilder: (_, _, _) => Icon(
                   Icons.two_wheeler_rounded,
-                  size: h * 0.2,
+                  size: w * 0.12,
                   color: widget.color,
                 ),
               ),
@@ -205,10 +207,15 @@ class _GaugePainter extends CustomPainter {
   static const double _start = math.pi * 0.80; // ~144°
   static const double _sweep = math.pi * 1.40; // 252° dial
 
+  /// Shared geometry (widget lays out the read-out with the same numbers).
+  static const double radiusFactor = 0.40; // r = width * 0.40
+  static const double centerFactor = 1.14; // centre y = r * 1.14 (room for the glow)
+  static const double heightFactor = 0.78; // height = width * 0.78
+
   @override
   void paint(Canvas canvas, Size size) {
-    final r = math.min(size.width / 2, size.height * 0.80) * 0.92;
-    final c = Offset(size.width / 2, size.height * 0.62);
+    final r = size.width * radiusFactor;
+    final c = Offset(size.width / 2, r * centerFactor);
     final stroke = r * 0.11;
     final rect = Rect.fromCircle(center: c, radius: r);
 

@@ -57,9 +57,13 @@ class MainActivity : FlutterActivity() {
 
     private fun consumeIntent(intent: Intent?, fromNewIntent: Boolean) {
         if (intent?.action != JobAlerts.ACTION_INCOMING) return
-        val bookingId = intent.getStringExtra(JobAlerts.EXTRA_BOOKING_ID) ?: return
         // Make sure the same tap is not handled twice (e.g. on rotation).
         intent.action = null
+        val bookingId = intent.getStringExtra(JobAlerts.EXTRA_BOOKING_ID) ?: return
+        val token = intent.getStringExtra(JobAlerts.EXTRA_TOKEN)
+        // Ignore look-alike intents from other apps (no lock-screen display).
+        if (token == null || token != JobAlerts.activeToken) return
+        JobAlerts.activeToken = null
         alerts?.cancel()
         showOverLockScreen(true)
         if (fromNewIntent && channel != null) {

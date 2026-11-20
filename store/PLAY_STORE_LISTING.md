@@ -49,6 +49,14 @@ Play Console → App content → **Foreground service permissions** → `FOREGRO
 
 Background location (`ACCESS_BACKGROUND_LOCATION`) **nahi** maangi gayi hai, isliye uska alag declaration nahi chahiye.
 
+### Full-screen intent declaration — zaroori (naya, call-style job alerts)
+Play Console → App content → **Full-screen intent permission** (`USE_FULL_SCREEN_INTENT`):
+- Sawal "Is your app's core functionality calling or alarms?" → **No** (job alerts) — honest jawab dein.
+- Iska matlab: Android 14+ par Play Store yeh permission default *off* rakhega. App khud banner dikhati hai
+  ("Allow full-screen alerts") jo seedha setting kholta hai; permission na mile to bhi job alert
+  heads-up notification + looping ringtone ke saath bajta hai (graceful fallback — policy ki zaroorat).
+- Sideload kiye test APK par permission pehle se on rehti hai.
+
 ## Data safety form
 
 **Collected & shared?** Yes. **Encrypted in transit?** Yes. **Deletion?** Yes.
@@ -63,5 +71,6 @@ Background location (`ACCESS_BACKGROUND_LOCATION`) **nahi** maangi gayi hai, isl
 ## Permissions used
 - `ACCESS_FINE_LOCATION`, `ACCESS_COARSE_LOCATION`
 - `FOREGROUND_SERVICE`, `FOREGROUND_SERVICE_LOCATION` — Online rehte hue live location
-- `POST_NOTIFICATIONS` — ongoing "Online" notification
+- `POST_NOTIFICATIONS` — ongoing "Online" notification + new-job alerts
+- `USE_FULL_SCREEN_INTENT` — new job request phone-call jaisa full screen (lock screen par bhi)
 - `WAKE_LOCK`, `VIBRATE`, `INTERNET`
