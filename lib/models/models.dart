@@ -106,6 +106,8 @@ class OpenRequest {
     required this.createdAt,
     this.vehicleLabel,
     this.vehicleBodyType,
+    this.voiceNotePath,
+    this.voiceNoteSeconds,
   });
 
   factory OpenRequest.fromJson(Map<String, dynamic> json) {
@@ -121,6 +123,8 @@ class OpenRequest {
       createdAt: _toDate(json['created_at']),
       vehicleLabel: _toStringOrNull(json['vehicle_label']),
       vehicleBodyType: _toStringOrNull(json['vehicle_body_type']),
+      voiceNotePath: _toStringOrNull(json['voice_note_path']),
+      voiceNoteSeconds: json['voice_note_seconds'] == null ? null : _toInt(json['voice_note_seconds']),
     );
   }
 
@@ -135,6 +139,10 @@ class OpenRequest {
   final DateTime? createdAt;
   final String? vehicleLabel;
   final String? vehicleBodyType;
+
+  /// Customer's recorded description (path in the `voice-notes` bucket).
+  final String? voiceNotePath;
+  final int? voiceNoteSeconds;
 }
 
 /// The job currently assigned to this mechanic (`mechanic_get_active_job`).
@@ -153,6 +161,8 @@ class ActiveJob {
     required this.minVisitCharge,
     this.vehicleLabel,
     this.vehicleBodyType,
+    this.voiceNotePath,
+    this.voiceNoteSeconds,
   });
 
   factory ActiveJob.fromJson(Map<String, dynamic> json) {
@@ -170,6 +180,8 @@ class ActiveJob {
       minVisitCharge: _toInt(json['min_visit_charge'], 49),
       vehicleLabel: _toStringOrNull(json['vehicle_label']),
       vehicleBodyType: _toStringOrNull(json['vehicle_body_type']),
+      voiceNotePath: _toStringOrNull(json['voice_note_path']),
+      voiceNoteSeconds: json['voice_note_seconds'] == null ? null : _toInt(json['voice_note_seconds']),
     );
   }
 
@@ -186,6 +198,8 @@ class ActiveJob {
   final int minVisitCharge;
   final String? vehicleLabel;
   final String? vehicleBodyType;
+  final String? voiceNotePath;
+  final int? voiceNoteSeconds;
 }
 
 /// Result of `mechanic_start_job` (OTP check).

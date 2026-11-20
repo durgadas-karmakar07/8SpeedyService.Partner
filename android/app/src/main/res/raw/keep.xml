@@ -1,0 +1,4 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Resource shrinking must never strip the job-alert ringtone or its icon. -->
+<resources xmlns:tools="http://schemas.android.com/tools"
+    tools:keep="@raw/speedy_ring,@drawable/ic_stat_job" />

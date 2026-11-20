@@ -15,6 +15,7 @@ import '../services/partner_service.dart';
 import 'account_gate.dart';
 import 'home_screen.dart';
 import '../widgets/speedy_loader.dart';
+import '../widgets/voice_note_player.dart';
 
 /// Active job flow: Navigate -> Arrived -> Start OTP -> Complete.
 class JobScreen extends StatefulWidget {
@@ -542,6 +543,10 @@ class _JobScreenState extends State<JobScreen> with WidgetsBindingObserver {
                 const SizedBox(height: 6),
                 Text('“${_job.issueNote}”',
                     style: TextStyle(fontStyle: FontStyle.italic, color: Colors.blueGrey.shade700)),
+              ],
+              if (_job.voiceNotePath != null) ...<Widget>[
+                const SizedBox(height: 10),
+                VoiceNotePlayer(path: _job.voiceNotePath!, seconds: _job.voiceNoteSeconds),
               ],
               const Divider(height: 22),
               Row(

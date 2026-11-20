@@ -75,6 +75,13 @@ class PartnerConstants {
   /// Requests within this distance are shown.
   static const int requestRadiusMeters = 10000;
 
+  /// How long a new request rings (call screen / notification) before it
+  /// counts as missed. The request still stays in the list.
+  static const Duration incomingRingTimeout = Duration(seconds: 40);
+
+  /// Private Supabase Storage bucket with customers' voice notes.
+  static const String voiceNoteBucket = 'voice-notes';
+
   // ---------------------------------------------------------------------------
   // Booking statuses
   // ---------------------------------------------------------------------------

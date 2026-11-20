@@ -11,15 +11,18 @@ import '../core/constants.dart';
 import '../core/error_helper.dart';
 import '../core/vehicle_view.dart';
 import '../models/models.dart';
+import '../services/alert_service.dart';
 import '../services/auth_service.dart';
 import '../services/location_service.dart';
 import '../services/partner_service.dart';
 import 'account_gate.dart';
 import 'account_screen.dart';
 import 'history_screen.dart';
+import 'incoming_request_screen.dart';
 import 'job_screen.dart';
 import 'login_screen.dart';
 import '../widgets/speedy_loader.dart';
+import '../widgets/voice_note_player.dart';
 
 /// Main screen: Online/Offline switch + live list of nearby customer requests.
 class HomeScreen extends StatefulWidget {
@@ -47,11 +50,26 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   final Set<String> _seenIds = <String>{};
   Timer? _pollTimer;
 
+  // Call-style job alerts
+  final ValueNotifier<Set<String>> _liveIds = ValueNotifier<Set<String>>(<String>{});
+  StreamSubscription<String>? _tapSub;
+  bool _inForeground = true;
+  bool _callOpen = false;
+  String? _pendingTapId;
+  String? _notifiedId;
+  bool _notifAllowed = true;
+  bool _fullScreenAllowed = true;
+
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
     _location.position.addListener(_onPositionChanged);
+    _tapSub = AlertService.instance.incomingTaps.listen(_onAlertTapped);
+    // App was opened by tapping a job alert after it had been closed.
+    AlertService.instance.takeLaunchRequest().then((id) {
+      if (id != null) _onAlertTapped(id);
+    });
     // Coming back from a job, or the server still thinks we're online
     // (app was killed) -> resume online mode without asking again.
     if (widget.profile.isOnline || _location.isTracking) {
@@ -64,12 +82,21 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     WidgetsBinding.instance.removeObserver(this);
     _location.position.removeListener(_onPositionChanged);
     _pollTimer?.cancel();
+    _tapSub?.cancel();
+    AlertService.instance.cancelIncoming();
+    _liveIds.dispose();
     super.dispose();
   }
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
-    if (state == AppLifecycleState.resumed && _online) {
+    _inForeground = state == AppLifecycleState.resumed;
+    if (state != AppLifecycleState.resumed) return;
+    _refreshAlertPermissions();
+    // Opened from the launcher while a job alert was ringing -> show it.
+    final ringing = _notifiedId;
+    if (ringing != null && !_callOpen) _onAlertTapped(ringing);
+    if (_online) {
       _checkActiveJob();
       _refresh();
     }
@@ -148,6 +175,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
         _firstLoadDone = false;
       });
       _startPolling();
+      _setupAlerts();
     } catch (e) {
       if (!await _handleFatal(e)) _snack(ErrorHelper.friendly(e));
     } finally {
@@ -162,6 +190,8 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
       await _api.setStatus(isOnline: false);
       await _location.stop();
       _pollTimer?.cancel();
+      _notifiedId = null;
+      AlertService.instance.cancelIncoming();
       if (!mounted) return;
       setState(() {
         _online = false;
@@ -195,21 +225,140 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
       final fresh = list.where((r) => !_seenIds.contains(r.bookingId)).toList();
       final changed = fresh.isNotEmpty || list.length != _requests.length;
       _seenIds.addAll(list.map((r) => r.bookingId));
-      if (_firstLoadDone && fresh.isNotEmpty) {
-        HapticFeedback.heavyImpact();
-        SystemSound.play(SystemSoundType.alert);
-        _snack('🔔 ${fresh.length} new request(s) nearby!');
-      }
+      final wasFirstLoad = !_firstLoadDone;
+      final ids = list.map((r) => r.bookingId).toSet();
 
       setState(() {
         _requests = list;
         _pollError = null;
         _firstLoadDone = true;
       });
+      _liveIds.value = ids;
       if (changed) _fitMap();
+
+      // A ringing notification whose request is gone -> stop it.
+      if (_notifiedId != null && !ids.contains(_notifiedId)) {
+        _notifiedId = null;
+        AlertService.instance.cancelIncoming();
+      }
+
+      final pending = _pendingTapId;
+      if (pending != null) {
+        _pendingTapId = null;
+        final match = list.where((r) => r.bookingId == pending).firstOrNull;
+        if (match != null) {
+          _openCallScreen(match);
+        } else {
+          AlertService.instance.setLockScreenMode(false);
+          _snack('That request is no longer available.');
+        }
+      } else if (!wasFirstLoad && fresh.isNotEmpty) {
+        _announce(fresh);
+      }
     } catch (e) {
       if (await _handleFatal(e)) return;
       if (mounted) setState(() => _pollError = ErrorHelper.friendly(e));
+    }
+  }
+
+  // ---------------------------------------------------------------------------
+  // Call-style job alerts
+  // ---------------------------------------------------------------------------
+
+  Future<void> _setupAlerts() async {
+    final notif = await AlertService.instance.requestNotifications();
+    final fullScreen = await AlertService.instance.canUseFullScreen();
+    if (!mounted) return;
+    setState(() {
+      _notifAllowed = notif;
+      _fullScreenAllowed = fullScreen;
+    });
+  }
+
+  Future<void> _refreshAlertPermissions() async {
+    final notif = await AlertService.instance.notificationsAllowed();
+    final fullScreen = await AlertService.instance.canUseFullScreen();
+    if (!mounted) return;
+    if (notif != _notifAllowed || fullScreen != _fullScreenAllowed) {
+      setState(() {
+        _notifAllowed = notif;
+        _fullScreenAllowed = fullScreen;
+      });
+    }
+  }
+
+  /// New request(s) arrived: ring like a phone call.
+  void _announce(List<OpenRequest> fresh) {
+    final nearest = List<OpenRequest>.of(fresh)
+      ..sort((a, b) => a.distanceMeters.compareTo(b.distanceMeters));
+    final r = nearest.first;
+    if (_inForeground) {
+      if (_callOpen) {
+        HapticFeedback.heavyImpact();
+        return;
+      }
+      _openCallScreen(r);
+      return;
+    }
+    _notifiedId = r.bookingId;
+    final issues = r.issueTags.take(3).join(', ');
+    AlertService.instance
+        .showIncoming(
+          bookingId: r.bookingId,
+          title: '🔔 New job • ${Fmt.distance(r.distanceMeters)} away',
+          body: '${vehicleName(r.vehicleLabel, r.vehicleType)}'
+              '${issues.isEmpty ? '' : ' — $issues'}'
+              '${r.voiceNotePath != null ? ' • 🎤 voice note' : ''}',
+        )
+        .then((shown) {
+      if (!shown) SystemSound.play(SystemSoundType.alert);
+    });
+  }
+
+  /// The mechanic tapped a job alert (or opened the app while it rang).
+  Future<void> _onAlertTapped(String bookingId) async {
+    _notifiedId = null;
+    AlertService.instance.cancelIncoming();
+    if (_callOpen || !mounted) return;
+    final match = _requests.where((r) => r.bookingId == bookingId).firstOrNull;
+    if (match != null) {
+      _openCallScreen(match);
+      return;
+    }
+    // Not loaded yet (cold start) -> open it after the next refresh.
+    _pendingTapId = bookingId;
+    if (_online) await _refresh();
+  }
+
+  Future<void> _openCallScreen(OpenRequest r) async {
+    if (_callOpen || !mounted || _acceptingId != null) return;
+    _callOpen = true;
+    _notifiedId = null;
+    AlertService.instance.cancelIncoming();
+    final decision = await Navigator.of(context).push<IncomingDecision>(
+      PageRouteBuilder<IncomingDecision>(
+        transitionDuration: const Duration(milliseconds: 280),
+        pageBuilder: (_, _, _) => IncomingRequestScreen(request: r, liveIds: _liveIds),
+        transitionsBuilder: (_, anim, _, child) => FadeTransition(
+          opacity: anim,
+          child: SlideTransition(
+            position: Tween<Offset>(begin: const Offset(0, 0.06), end: Offset.zero)
+                .animate(anim),
+            child: child,
+          ),
+        ),
+      ),
+    );
+    _callOpen = false;
+    AlertService.instance.setLockScreenMode(false);
+    if (!mounted) return;
+    switch (decision) {
+      case IncomingDecision.accept:
+        await _accept(r);
+      case IncomingDecision.missed:
+        _snack('Missed a request — it is still in the list if you want it.');
+      default:
+        break;
     }
   }
 
@@ -299,6 +448,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     );
     if (ok != true) return;
     _pollTimer?.cancel();
+    AlertService.instance.cancelIncoming();
     try {
       await _api.setStatus(isOnline: false);
     } catch (_) {}
@@ -353,6 +503,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
         children: <Widget>[
           _statusCard(),
           if (_locationIssue != LocationIssue.none) _locationBanner(),
+          if (_online && (!_notifAllowed || !_fullScreenAllowed)) _alertsBanner(),
           Expanded(child: _online ? _onlineBody() : _offlineBody()),
         ],
       ),
@@ -452,6 +603,41 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     );
   }
 
+  Widget _alertsBanner() {
+    final notificationsOff = !_notifAllowed;
+    return Container(
+      width: double.infinity,
+      color: const Color(0xFFFFEDD5),
+      padding: const EdgeInsets.fromLTRB(16, 8, 8, 8),
+      child: Row(
+        children: <Widget>[
+          const Icon(Icons.ring_volume_rounded, color: PartnerConstants.primaryColor),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Text(
+              notificationsOff
+                  ? 'Notifications are off — new jobs cannot ring when the app is in the background.'
+                  : 'Allow full-screen alerts so new jobs ring like a phone call, even on the lock screen.',
+              style: const TextStyle(fontSize: 12.5),
+            ),
+          ),
+          TextButton(
+            onPressed: () async {
+              if (notificationsOff) {
+                final ok = await AlertService.instance.requestNotifications();
+                if (!ok) await AlertService.instance.openNotificationSettings();
+              } else {
+                await AlertService.instance.openFullScreenSettings();
+              }
+              _refreshAlertPermissions();
+            },
+            child: Text(notificationsOff ? 'Turn on' : 'Allow'),
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget _offlineBody() {
     return ListView(
       padding: const EdgeInsets.all(24),
@@ -471,6 +657,8 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
           style: TextStyle(color: Colors.blueGrey.shade600, height: 1.4),
         ),
         const SizedBox(height: 24),
+        _tip(Icons.ring_volume_rounded,
+            'New requests ring like a phone call — even when the screen is off.'),
         _tip(Icons.notifications_active_rounded,
             'While online, do not swipe the app away from recent apps.'),
         _tip(Icons.battery_saver_rounded,
@@ -529,7 +717,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                   Icon(Icons.radar_rounded, size: 56, color: Colors.blueGrey.shade300),
                   const SizedBox(height: 10),
                   const Text(
-                    'No requests right now.\nYour phone will vibrate when a new request arrives.',
+                    'No requests right now.\nYour phone will ring when a new request arrives.',
                     textAlign: TextAlign.center,
                   ),
                 ],
@@ -668,6 +856,10 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
               const SizedBox(height: 6),
               Text('“${r.issueNote}”',
                   style: TextStyle(fontStyle: FontStyle.italic, color: Colors.blueGrey.shade700)),
+            ],
+            if (r.voiceNotePath != null) ...<Widget>[
+              const SizedBox(height: 8),
+              VoiceNotePlayer(path: r.voiceNotePath!, seconds: r.voiceNoteSeconds),
             ],
             const SizedBox(height: 8),
             Row(
