@@ -4,14 +4,15 @@
 set -x
 APK="$1"; PKG="$2"
 OUT=smoke; mkdir -p "$OUT"
+ADB_BIN=$(command -v adb)
 # Never let a dead emulator hang the job.
-adb() { timeout 90 command adb "$@"; }
+adb() { timeout 90 "$ADB_BIN" "$@"; }
 adb wait-for-device
 adb shell settings put global window_animation_scale 0 || true
 adb install -r -g "$APK" | tee "$OUT/install.txt"
 adb logcat -c
 # Stream logcat to a file so logs survive even if the emulator dies.
-command adb logcat -v time > "$OUT/logcat.txt" 2>&1 &
+"$ADB_BIN" logcat -v time > "$OUT/logcat.txt" 2>&1 &
 LOGCAT_PID=$!
 adb shell monkey -p "$PKG" -c android.intent.category.LAUNCHER 1
 shot() { sleep "$2"; adb exec-out screencap -p > "$OUT/$1.png"; }
