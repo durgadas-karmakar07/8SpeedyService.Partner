@@ -20,7 +20,11 @@ Future<void> confirmAndDeleteAccount(BuildContext context) async {
     context: context,
     builder: (ctx) => StatefulBuilder(
       builder: (ctx, setLocal) => AlertDialog(
-        icon: const Icon(Icons.warning_amber_rounded, color: PartnerConstants.dangerColor, size: 36),
+        icon: const Icon(
+          Icons.warning_amber_rounded,
+          color: PartnerConstants.dangerColor,
+          size: 36,
+        ),
         title: const Text('Delete your partner account?'),
         content: Column(
           mainAxisSize: MainAxisSize.min,
@@ -36,12 +40,18 @@ Future<void> confirmAndDeleteAccount(BuildContext context) async {
               contentPadding: EdgeInsets.zero,
               controlAffinity: ListTileControlAffinity.leading,
               onChanged: (v) => setLocal(() => understood = v ?? false),
-              title: const Text('I understand', style: TextStyle(fontSize: 13.5)),
+              title: const Text(
+                'I understand',
+                style: TextStyle(fontSize: 13.5),
+              ),
             ),
           ],
         ),
         actions: <Widget>[
-          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Cancel'),
+          ),
           FilledButton(
             style: FilledButton.styleFrom(
               backgroundColor: PartnerConstants.dangerColor,
@@ -70,7 +80,11 @@ Future<void> confirmAndDeleteAccount(BuildContext context) async {
     if (!context.mounted) return;
     Navigator.of(context).pop(); // progress
     ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(ErrorHelper.friendly(e, fallback: 'Could not delete the account.'))),
+      SnackBar(
+        content: Text(
+          ErrorHelper.friendly(e, fallback: 'Could not delete the account.'),
+        ),
+      ),
     );
   }
 }
@@ -82,19 +96,27 @@ class AccountScreen extends StatelessWidget {
   final MechanicProfile profile;
 
   void _openDoc(BuildContext context, LegalDoc doc) {
-    Navigator.of(context).push(MaterialPageRoute<void>(builder: (_) => LegalScreen(doc: doc)));
+    Navigator.of(context)
+        .push(MaterialPageRoute<void>(builder: (_) => LegalScreen(doc: doc)));
   }
 
   Future<void> _open(BuildContext context, String url) async {
-    final ok = await launchUrl(Uri.parse(url), mode: LaunchMode.externalApplication);
+    final ok = await launchUrl(
+      Uri.parse(url),
+      mode: LaunchMode.externalApplication,
+    );
     if (!ok && context.mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Could not open the link.')));
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Could not open the link.')));
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    final specs = profile.vehicleSpecialties.map((k) => PartnerConstants.vehicleFor(k).title).join(', ');
+    final specs = profile.vehicleSpecialties
+        .map((k) => PartnerConstants.vehicleFor(k).title)
+        .join(', ');
     return Scaffold(
       appBar: AppBar(title: const Text('Account')),
       body: ListView(
@@ -102,27 +124,49 @@ class AccountScreen extends StatelessWidget {
         children: <Widget>[
           Container(
             padding: const EdgeInsets.all(16),
-            decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(16)),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(16),
+            ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: <Widget>[
-                Text(profile.fullName, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w700)),
+                Text(
+                  profile.fullName,
+                  style: const TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
                 const SizedBox(height: 4),
-                Text(profile.phone, style: TextStyle(color: Colors.blueGrey.shade600)),
-                if (profile.shopName != null) Text(profile.shopName!, style: TextStyle(color: Colors.blueGrey.shade600)),
+                Text(
+                  profile.phone,
+                  style: TextStyle(color: Colors.blueGrey.shade600),
+                ),
+                if (profile.shopName != null)
+                  Text(
+                    profile.shopName!,
+                    style: TextStyle(color: Colors.blueGrey.shade600),
+                  ),
                 const Divider(height: 24),
                 Text('Repair: $specs', style: const TextStyle(fontSize: 13)),
                 const SizedBox(height: 6),
                 Text(
                   'To change your name or vehicle types, message WhatsApp support.',
-                  style: TextStyle(fontSize: 12, color: Colors.blueGrey.shade500),
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: Colors.blueGrey.shade500,
+                  ),
                 ),
               ],
             ),
           ),
           const SizedBox(height: 16),
           Container(
-            decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(16)),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(16),
+            ),
             child: Column(
               children: <Widget>[
                 ListTile(
@@ -143,7 +187,8 @@ class AccountScreen extends StatelessWidget {
                   leading: const Icon(Icons.info_outline_rounded),
                   title: const Text('How account deletion works'),
                   trailing: const Icon(Icons.open_in_new_rounded, size: 18),
-                  onTap: () => _open(context, PartnerConstants.deleteAccountUrl),
+                  onTap: () =>
+                      _open(context, PartnerConstants.deleteAccountUrl),
                 ),
                 const Divider(height: 1),
                 ListTile(
@@ -155,21 +200,33 @@ class AccountScreen extends StatelessWidget {
                 const Divider(height: 1),
                 ListTile(
                   leading: const Icon(Icons.support_agent_rounded),
-                  title: const Text('WhatsApp Support (${PartnerConstants.supportPhoneDisplay})'),
+                  title: const Text(
+                    'WhatsApp Support (${PartnerConstants.supportPhoneDisplay})',
+                  ),
                   trailing: const Icon(Icons.open_in_new_rounded, size: 18),
-                  onTap: () => _open(context, PartnerConstants.whatsappSupportUrl),
+                  onTap: () =>
+                      _open(context, PartnerConstants.whatsappSupportUrl),
                 ),
               ],
             ),
           ),
           const SizedBox(height: 16),
           Container(
-            decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(16)),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(16),
+            ),
             child: ListTile(
-              leading: const Icon(Icons.delete_forever_rounded, color: PartnerConstants.dangerColor),
+              leading: const Icon(
+                Icons.delete_forever_rounded,
+                color: PartnerConstants.dangerColor,
+              ),
               title: const Text(
                 'Delete my account',
-                style: TextStyle(color: PartnerConstants.dangerColor, fontWeight: FontWeight.w600),
+                style: TextStyle(
+                  color: PartnerConstants.dangerColor,
+                  fontWeight: FontWeight.w600,
+                ),
               ),
               onTap: () => confirmAndDeleteAccount(context),
             ),

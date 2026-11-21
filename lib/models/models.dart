@@ -24,6 +24,13 @@ List<String> _toStringList(dynamic v) {
   return const <String>[];
 }
 
+/// Short AI diagnosis summary attached to a booking (`ai_diagnosis` JSON).
+String? _aiSummary(dynamic v) {
+  if (v is! Map) return null;
+  final summary = v['summary']?.toString().trim() ?? '';
+  return summary.isEmpty ? null : summary;
+}
+
 String? _toStringOrNull(dynamic v) {
   if (v == null) return null;
   final s = v.toString().trim();
@@ -84,7 +91,9 @@ class AccountStatus {
     final m = json['mechanic'];
     return AccountStatus(
       state: state,
-      profile: m is Map ? MechanicProfile.fromJson(Map<String, dynamic>.from(m)) : null,
+      profile: m is Map
+          ? MechanicProfile.fromJson(Map<String, dynamic>.from(m))
+          : null,
     );
   }
 
@@ -108,6 +117,7 @@ class OpenRequest {
     this.vehicleBodyType,
     this.voiceNotePath,
     this.voiceNoteSeconds,
+    this.aiSummary,
   });
 
   factory OpenRequest.fromJson(Map<String, dynamic> json) {
@@ -124,9 +134,15 @@ class OpenRequest {
       vehicleLabel: _toStringOrNull(json['vehicle_label']),
       vehicleBodyType: _toStringOrNull(json['vehicle_body_type']),
       voiceNotePath: _toStringOrNull(json['voice_note_path']),
-      voiceNoteSeconds: json['voice_note_seconds'] == null ? null : _toInt(json['voice_note_seconds']),
+      voiceNoteSeconds: json['voice_note_seconds'] == null
+          ? null
+          : _toInt(json['voice_note_seconds']),
+      aiSummary: _aiSummary(json['ai_diagnosis']),
     );
   }
+
+  /// What the customer's AI diagnosis thinks is wrong (null if none).
+  final String? aiSummary;
 
   final String bookingId;
   final String vehicleType;
@@ -163,6 +179,9 @@ class ActiveJob {
     this.vehicleBodyType,
     this.voiceNotePath,
     this.voiceNoteSeconds,
+    this.aiSummary,
+    this.otpAttemptsLeft,
+    this.unreadMessages = 0,
   });
 
   factory ActiveJob.fromJson(Map<String, dynamic> json) {
@@ -181,9 +200,24 @@ class ActiveJob {
       vehicleLabel: _toStringOrNull(json['vehicle_label']),
       vehicleBodyType: _toStringOrNull(json['vehicle_body_type']),
       voiceNotePath: _toStringOrNull(json['voice_note_path']),
-      voiceNoteSeconds: json['voice_note_seconds'] == null ? null : _toInt(json['voice_note_seconds']),
+      voiceNoteSeconds: json['voice_note_seconds'] == null
+          ? null
+          : _toInt(json['voice_note_seconds']),
+      aiSummary: _aiSummary(json['ai_diagnosis']),
+      otpAttemptsLeft: json['otp_attempts_left'] == null
+          ? null
+          : _toInt(json['otp_attempts_left']),
+      unreadMessages: _toInt(json['unread_messages']),
     );
   }
+
+  final String? aiSummary;
+
+  /// Start-OTP tries left (v2 payload only).
+  final int? otpAttemptsLeft;
+
+  /// Customer messages not read yet (v2 payload only).
+  final int unreadMessages;
 
   final String bookingId;
   final String status;
@@ -204,19 +238,48 @@ class ActiveJob {
 
 /// Result of `mechanic_start_job` (OTP check).
 class StartJobResult {
-  const StartJobResult({required this.started, this.message, this.attemptsLeft});
+  const StartJobResult({
+    required this.started,
+    this.message,
+    this.attemptsLeft,
+    this.locked = false,
+  });
 
   factory StartJobResult.fromJson(Map<String, dynamic> json) {
     return StartJobResult(
       started: json['started'] == true,
       message: _toStringOrNull(json['message']),
-      attemptsLeft: json['attempts_left'] == null ? null : _toInt(json['attempts_left']),
+      attemptsLeft: json['attempts_left'] == null
+          ? null
+          : _toInt(json['attempts_left']),
+      locked: json['locked'] == true,
     );
   }
 
+  /// Too many wrong OTPs: the customer must create a new OTP.
+  final bool locked;
   final bool started;
   final String? message;
   final int? attemptsLeft;
+}
+
+/// One day in the 7-day earnings chart.
+class DailyEarning {
+  const DailyEarning({
+    required this.day,
+    required this.jobs,
+    required this.earnings,
+  });
+
+  factory DailyEarning.fromJson(Map<String, dynamic> json) => DailyEarning(
+    day: _toDate(json['day']) ?? DateTime.now(),
+    jobs: _toInt(json['jobs']),
+    earnings: _toInt(json['earnings']),
+  );
+
+  final DateTime day;
+  final int jobs;
+  final int earnings;
 }
 
 class PartnerStats {
@@ -226,6 +289,15 @@ class PartnerStats {
     required this.totalCompleted,
     required this.rating,
     required this.ratingCount,
+    this.monthCompleted = 0,
+    this.todayEarnings = 0,
+    this.weekEarnings = 0,
+    this.monthEarnings = 0,
+    this.totalEarnings = 0,
+    this.released30d = 0,
+    this.accepted30d = 0,
+    this.suspendedUntil,
+    this.daily = const <DailyEarning>[],
   });
 
   factory PartnerStats.fromJson(Map<String, dynamic> json) {
@@ -235,6 +307,18 @@ class PartnerStats {
       totalCompleted: _toInt(json['total_completed']),
       rating: _toDouble(json['rating'], 5.0),
       ratingCount: _toInt(json['rating_count']),
+      monthCompleted: _toInt(json['month_completed']),
+      todayEarnings: _toInt(json['today_earnings']),
+      weekEarnings: _toInt(json['week_earnings']),
+      monthEarnings: _toInt(json['month_earnings']),
+      totalEarnings: _toInt(json['total_earnings']),
+      released30d: _toInt(json['released_30d']),
+      accepted30d: _toInt(json['accepted_30d']),
+      suspendedUntil: _toDate(json['suspended_until'])?.toLocal(),
+      daily: (json['daily'] is List ? json['daily'] as List : const <dynamic>[])
+          .whereType<Map<dynamic, dynamic>>()
+          .map((e) => DailyEarning.fromJson(Map<String, dynamic>.from(e)))
+          .toList(),
     );
   }
 
@@ -243,6 +327,23 @@ class PartnerStats {
   final int totalCompleted;
   final double rating;
   final int ratingCount;
+  final int monthCompleted;
+  final int todayEarnings;
+  final int weekEarnings;
+  final int monthEarnings;
+  final int totalEarnings;
+  final int released30d;
+  final int accepted30d;
+  final DateTime? suspendedUntil;
+  final List<DailyEarning> daily;
+
+  bool get isSuspended =>
+      suspendedUntil != null && suspendedUntil!.isAfter(DateTime.now());
+
+  /// Share of accepted jobs that were finished (not released), last 30 days.
+  int get completionRate => accepted30d == 0
+      ? 100
+      : ((accepted30d - released30d) * 100 / accepted30d).round();
 }
 
 class JobHistoryItem {
@@ -258,6 +359,8 @@ class JobHistoryItem {
     required this.when,
     this.vehicleLabel,
     this.vehicleBodyType,
+    this.repairAmount,
+    this.reviewTags = const <String>[],
   });
 
   factory JobHistoryItem.fromJson(Map<String, dynamic> json) {
@@ -270,13 +373,22 @@ class JobHistoryItem {
       rating: json['rating'] == null ? null : _toInt(json['rating']),
       reviewText: _toStringOrNull(json['review_text']),
       cancelledBy: _toStringOrNull(json['cancelled_by']),
-      when: _toDate(json['completed_at']) ??
+      when:
+          _toDate(json['completed_at']) ??
           _toDate(json['cancelled_at']) ??
           _toDate(json['accepted_at']),
       vehicleLabel: _toStringOrNull(json['vehicle_label']),
       vehicleBodyType: _toStringOrNull(json['vehicle_body_type']),
+      repairAmount: json['repair_amount'] == null
+          ? null
+          : _toInt(json['repair_amount']),
+      reviewTags: _toStringList(json['review_tags']),
     );
   }
+
+  /// Bill entered at completion (paid by the customer to the mechanic).
+  final int? repairAmount;
+  final List<String> reviewTags;
 
   final String bookingId;
   final String status;
@@ -291,4 +403,105 @@ class JobHistoryItem {
   final String? vehicleBodyType;
 
   bool get isCompleted => status == 'COMPLETED';
+}
+
+/// In-app chat message (customer <-> mechanic).
+class ChatMessage {
+  const ChatMessage({
+    required this.id,
+    required this.senderRole,
+    required this.body,
+    required this.createdAt,
+    this.readAt,
+  });
+
+  factory ChatMessage.fromJson(Map<String, dynamic> json) => ChatMessage(
+    id: json['id']?.toString() ?? '',
+    senderRole: json['sender_role']?.toString() ?? 'system',
+    body: json['body']?.toString() ?? '',
+    createdAt: _toDate(json['created_at'])?.toLocal() ?? DateTime.now(),
+    readAt: _toDate(json['read_at'])?.toLocal(),
+  );
+
+  final String id;
+  final String senderRole;
+  final String body;
+  final DateTime createdAt;
+  final DateTime? readAt;
+}
+
+class ChatThread {
+  const ChatThread({required this.messages, required this.open});
+
+  factory ChatThread.fromJson(Map<String, dynamic> json) => ChatThread(
+    messages:
+        (json['messages'] is List
+                ? json['messages'] as List
+                : const <dynamic>[])
+            .whereType<Map<dynamic, dynamic>>()
+            .map((e) => ChatMessage.fromJson(Map<String, dynamic>.from(e)))
+            .toList(),
+    open: json['open'] == true,
+  );
+
+  final List<ChatMessage> messages;
+  final bool open;
+}
+
+/// AI repair guide for the mechanic's active job (`ai-assistant`, mode mechanic).
+class RepairGuide {
+  const RepairGuide({
+    required this.isAi,
+    required this.summary,
+    required this.urgency,
+    required this.causes,
+    required this.steps,
+    required this.tools,
+    required this.costMin,
+    required this.costMax,
+    required this.safety,
+  });
+
+  factory RepairGuide.fromResponse(Map<String, dynamic> json) {
+    final r = json['result'] is Map
+        ? Map<String, dynamic>.from(json['result'] as Map)
+        : <String, dynamic>{};
+    final cost = r['estimated_cost'] is Map
+        ? Map<String, dynamic>.from(r['estimated_cost'] as Map)
+        : <String, dynamic>{};
+    final causes =
+        (r['likely_causes'] is List
+                ? r['likely_causes'] as List
+                : const <dynamic>[])
+            .whereType<Map<dynamic, dynamic>>()
+            .map(
+              (c) => (
+                title: c['title']?.toString() ?? '',
+                probability: _toInt(c['probability']).clamp(1, 100).toInt(),
+              ),
+            )
+            .where((c) => c.title.isNotEmpty)
+            .toList();
+    return RepairGuide(
+      isAi: json['engine'] == 'ai',
+      summary: r['summary']?.toString() ?? '',
+      urgency: r['urgency']?.toString() ?? 'medium',
+      causes: causes,
+      steps: _toStringList(r['diagnostic_steps']),
+      tools: _toStringList(r['tools_and_parts']),
+      costMin: _toInt(cost['min_inr']),
+      costMax: _toInt(cost['max_inr']),
+      safety: _toStringList(r['avoid']),
+    );
+  }
+
+  final bool isAi;
+  final String summary;
+  final String urgency;
+  final List<({String title, int probability})> causes;
+  final List<String> steps;
+  final List<String> tools;
+  final int costMin;
+  final int costMax;
+  final List<String> safety;
 }

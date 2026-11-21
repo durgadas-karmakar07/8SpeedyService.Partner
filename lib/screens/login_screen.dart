@@ -44,7 +44,9 @@ class _LoginScreenState extends State<LoginScreen> {
         t.cancel();
         return;
       }
-      setState(() => _resendSeconds = _resendSeconds <= 1 ? 0 : _resendSeconds - 1);
+      setState(
+        () => _resendSeconds = _resendSeconds <= 1 ? 0 : _resendSeconds - 1,
+      );
       if (_resendSeconds == 0) t.cancel();
     });
   }
@@ -72,7 +74,10 @@ class _LoginScreenState extends State<LoginScreen> {
       if (!mounted) return;
       setState(() {
         _loading = false;
-        _error = ErrorHelper.friendly(e, fallback: 'Could not send the OTP. Please try again.');
+        _error = ErrorHelper.friendly(
+          e,
+          fallback: 'Could not send the OTP. Please try again.',
+        );
       });
     }
   }
@@ -89,7 +94,10 @@ class _LoginScreenState extends State<LoginScreen> {
       _error = null;
     });
     try {
-      final res = await _auth.verifyOtp(phone: _phoneController.text.trim(), otp: otp);
+      final res = await _auth.verifyOtp(
+        phone: _phoneController.text.trim(),
+        otp: otp,
+      );
       if (!mounted) return;
       if (res.session == null) {
         setState(() {
@@ -103,7 +111,10 @@ class _LoginScreenState extends State<LoginScreen> {
       if (!mounted) return;
       setState(() {
         _loading = false;
-        _error = ErrorHelper.friendly(e, fallback: 'The OTP is wrong or has expired.');
+        _error = ErrorHelper.friendly(
+          e,
+          fallback: 'The OTP is wrong or has expired.',
+        );
       });
     }
   }
@@ -121,7 +132,11 @@ class _LoginScreenState extends State<LoginScreen> {
               const SizedBox(height: 24),
               ClipRRect(
                 borderRadius: BorderRadius.circular(18),
-                child: Image.asset('assets/images/logo.png', width: 64, height: 64),
+                child: Image.asset(
+                  'assets/images/logo.png',
+                  width: 64,
+                  height: 64,
+                ),
               ),
               const SizedBox(height: 20),
               Text(
@@ -202,9 +217,13 @@ class _LoginScreenState extends State<LoginScreen> {
                       label: const Text('Change number'),
                     ),
                     TextButton(
-                      onPressed: (_loading || _resendSeconds > 0) ? null : _sendOtp,
+                      onPressed: (_loading || _resendSeconds > 0)
+                          ? null
+                          : _sendOtp,
                       child: Text(
-                        _resendSeconds > 0 ? 'Resend ${_resendSeconds}s' : 'Resend OTP',
+                        _resendSeconds > 0
+                            ? 'Resend ${_resendSeconds}s'
+                            : 'Resend OTP',
                       ),
                     ),
                   ],
@@ -220,7 +239,10 @@ class _LoginScreenState extends State<LoginScreen> {
               const SizedBox(height: 24),
               Text(
                 'New mechanic? Log in, fill the registration form, and start getting jobs after verification.',
-                style: TextStyle(color: Colors.blueGrey.shade600, fontSize: 12.5),
+                style: TextStyle(
+                  color: Colors.blueGrey.shade600,
+                  fontSize: 12.5,
+                ),
               ),
             ],
           ),

@@ -71,7 +71,10 @@ class LegalContent {
         'Security',
         'All data is encrypted in transit (HTTPS). Database rules let each user see only their own data, payments are verified only on our servers, and the start OTP is never shown to mechanics.',
       ),
-      LegalSection('Children', 'The apps are meant for people aged 18 and above.'),
+      LegalSection(
+        'Children',
+        'The apps are meant for people aged 18 and above.',
+      ),
       LegalSection(
         'Contact & grievance officer',
         'Grievance Officer: 8SpeedyService Support Team\n$contact\nWe reply within 7 days and resolve complaints within 30 days.',

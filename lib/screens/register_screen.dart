@@ -92,7 +92,8 @@ class _RegisterScreenState extends State<RegisterScreen> {
         actions: <Widget>[
           PopupMenuButton<String>(
             enabled: !_loading,
-            onSelected: (v) => v == 'delete' ? confirmAndDeleteAccount(context) : _logout(),
+            onSelected: (v) =>
+                v == 'delete' ? confirmAndDeleteAccount(context) : _logout(),
             itemBuilder: (_) => const <PopupMenuEntry<String>>[
               PopupMenuItem(value: 'logout', child: Text('Logout')),
               PopupMenuItem(value: 'delete', child: Text('Delete account')),
@@ -154,12 +155,12 @@ class _RegisterScreenState extends State<RegisterScreen> {
                   onSelected: _loading
                       ? null
                       : (on) => setState(() {
-                            if (on) {
-                              _specialties.add(v.key);
-                            } else {
-                              _specialties.remove(v.key);
-                            }
-                          }),
+                          if (on) {
+                            _specialties.add(v.key);
+                          } else {
+                            _specialties.remove(v.key);
+                          }
+                        }),
                 );
               }).toList(),
             ),
@@ -168,7 +169,9 @@ class _RegisterScreenState extends State<RegisterScreen> {
               value: _agreed,
               contentPadding: EdgeInsets.zero,
               controlAffinity: ListTileControlAffinity.leading,
-              onChanged: _loading ? null : (v) => setState(() => _agreed = v ?? false),
+              onChanged: _loading
+                  ? null
+                  : (v) => setState(() => _agreed = v ?? false),
               title: const Text(
                 'I will charge customers fairly, never start work without the Start OTP, and I agree to share my location while online.',
                 style: TextStyle(fontSize: 13),
@@ -179,7 +182,8 @@ class _RegisterScreenState extends State<RegisterScreen> {
               child: TextButton.icon(
                 onPressed: () => Navigator.of(context).push(
                   MaterialPageRoute<void>(
-                    builder: (_) => const LegalScreen(doc: LegalContent.partnerTerms),
+                    builder: (_) =>
+                        const LegalScreen(doc: LegalContent.partnerTerms),
                   ),
                 ),
                 icon: const Icon(Icons.description_outlined, size: 16),

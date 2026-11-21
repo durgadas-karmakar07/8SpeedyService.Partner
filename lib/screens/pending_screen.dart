@@ -26,18 +26,26 @@ class PendingScreen extends StatelessWidget {
                 Container(
                   padding: const EdgeInsets.all(22),
                   decoration: BoxDecoration(
-                    color: PartnerConstants.warningColor.withValues(alpha: 0.12),
+                    color: PartnerConstants.warningColor.withValues(
+                      alpha: 0.12,
+                    ),
                     shape: BoxShape.circle,
                   ),
-                  child: const Icon(Icons.hourglass_top_rounded,
-                      size: 56, color: PartnerConstants.warningColor),
+                  child: const Icon(
+                    Icons.hourglass_top_rounded,
+                    size: 56,
+                    color: PartnerConstants.warningColor,
+                  ),
                 ),
                 const SizedBox(height: 22),
                 Text(
                   profile == null
                       ? 'Verification pending'
                       : 'Hi ${profile!.firstName}!',
-                  style: const TextStyle(fontSize: 24, fontWeight: FontWeight.w800),
+                  style: const TextStyle(
+                    fontSize: 24,
+                    fontWeight: FontWeight.w800,
+                  ),
                   textAlign: TextAlign.center,
                 ),
                 const SizedBox(height: 10),
@@ -54,7 +62,9 @@ class PendingScreen extends StatelessWidget {
                 ),
                 const SizedBox(height: 12),
                 OutlinedButton.icon(
-                  style: OutlinedButton.styleFrom(minimumSize: const Size.fromHeight(50)),
+                  style: OutlinedButton.styleFrom(
+                    minimumSize: const Size.fromHeight(50),
+                  ),
                   onPressed: () => launchUrl(
                     Uri.parse(PartnerConstants.whatsappSupportUrl),
                     mode: LaunchMode.externalApplication,
@@ -73,7 +83,9 @@ class PendingScreen extends StatelessWidget {
                 ),
                 TextButton(
                   onPressed: () => confirmAndDeleteAccount(context),
-                  style: TextButton.styleFrom(foregroundColor: PartnerConstants.dangerColor),
+                  style: TextButton.styleFrom(
+                    foregroundColor: PartnerConstants.dangerColor,
+                  ),
                   child: const Text('Delete account'),
                 ),
               ],

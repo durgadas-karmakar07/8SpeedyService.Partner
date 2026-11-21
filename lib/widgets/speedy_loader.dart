@@ -45,7 +45,8 @@ class RoadLoader extends StatefulWidget {
   State<RoadLoader> createState() => _RoadLoaderState();
 }
 
-class _RoadLoaderState extends State<RoadLoader> with SingleTickerProviderStateMixin {
+class _RoadLoaderState extends State<RoadLoader>
+    with SingleTickerProviderStateMixin {
   late final AnimationController _c = AnimationController(
     vsync: this,
     duration: const Duration(milliseconds: 2400),
@@ -74,7 +75,9 @@ class _RoadLoaderState extends State<RoadLoader> with SingleTickerProviderStateM
   static double _rev(double t) {
     if (t < 0.42) return Curves.easeOutCubic.transform(t / 0.42);
     if (t < 0.56) return 1 - 0.04 * math.sin((t - 0.42) / 0.14 * math.pi * 3);
-    if (t < 0.80) return 1 - 0.72 * Curves.easeInOut.transform((t - 0.56) / 0.24);
+    if (t < 0.80) {
+      return 1 - 0.72 * Curves.easeInOut.transform((t - 0.56) / 0.24);
+    }
     return 0.28 + 0.12 * math.sin((t - 0.80) / 0.20 * math.pi);
   }
 
@@ -121,7 +124,9 @@ class _RoadLoaderState extends State<RoadLoader> with SingleTickerProviderStateM
                               fontSize: w * 0.11,
                               fontWeight: FontWeight.w800,
                               height: 1,
-                              fontFeatures: const <FontFeature>[FontFeature.tabularFigures()],
+                              fontFeatures: const <FontFeature>[
+                                FontFeature.tabularFigures(),
+                              ],
                             ),
                           ),
                           Text(
@@ -138,7 +143,10 @@ class _RoadLoaderState extends State<RoadLoader> with SingleTickerProviderStateM
                     Positioned(
                       top: cy - r * 0.62 - w * 0.065,
                       child: Transform.translate(
-                        offset: Offset(0, -2 * math.sin(_c.value * math.pi * 8).abs() * v),
+                        offset: Offset(
+                          0,
+                          -2 * math.sin(_c.value * math.pi * 8).abs() * v,
+                        ),
                         child: child,
                       ),
                     ),
@@ -209,7 +217,8 @@ class _GaugePainter extends CustomPainter {
 
   /// Shared geometry (widget lays out the read-out with the same numbers).
   static const double radiusFactor = 0.40; // r = width * 0.40
-  static const double centerFactor = 1.14; // centre y = r * 1.14 (room for the glow)
+  static const double centerFactor =
+      1.14; // centre y = r * 1.14 (room for the glow)
   static const double heightFactor = 0.78; // height = width * 0.78
 
   @override
@@ -240,7 +249,11 @@ class _GaugePainter extends CustomPainter {
         endAngle: math.pi * 2,
         transform: GradientRotation(_start - 0.05),
         colors: <Color>[_kAmber, accent, const Color(0xFFE11D48)],
-        stops: <double>[0.0, _sweep / (2 * math.pi) * 0.55, _sweep / (2 * math.pi)],
+        stops: <double>[
+          0.0,
+          _sweep / (2 * math.pi) * 0.55,
+          _sweep / (2 * math.pi),
+        ],
       ).createShader(rect);
       canvas.drawArc(
         rect,
@@ -318,7 +331,12 @@ class _GaugePainter extends CustomPainter {
         canvas.drawCircle(
           p,
           r * 0.018 * (1 - life),
-          Paint()..color = Color.lerp(_kAmber, accent, life)!.withValues(alpha: intensity * (1 - life)),
+          Paint()
+            ..color = Color.lerp(
+              _kAmber,
+              accent,
+              life,
+            )!.withValues(alpha: intensity * (1 - life)),
         );
       }
     }
@@ -330,7 +348,10 @@ class _GaugePainter extends CustomPainter {
 
   @override
   bool shouldRepaint(_GaugePainter old) =>
-      old.value != value || old.t != t || old.color != color || old.accent != accent;
+      old.value != value ||
+      old.t != t ||
+      old.color != color ||
+      old.accent != accent;
 }
 
 // -----------------------------------------------------------------------------
@@ -338,11 +359,7 @@ class _GaugePainter extends CustomPainter {
 // -----------------------------------------------------------------------------
 
 class WheelLoader extends StatefulWidget {
-  const WheelLoader({
-    super.key,
-    this.size = 44,
-    this.color = _kBrand,
-  });
+  const WheelLoader({super.key, this.size = 44, this.color = _kBrand});
 
   final double size;
   final Color color;
@@ -351,7 +368,8 @@ class WheelLoader extends StatefulWidget {
   State<WheelLoader> createState() => _WheelLoaderState();
 }
 
-class _WheelLoaderState extends State<WheelLoader> with SingleTickerProviderStateMixin {
+class _WheelLoaderState extends State<WheelLoader>
+    with SingleTickerProviderStateMixin {
   late final AnimationController _c = AnimationController(
     vsync: this,
     duration: const Duration(milliseconds: 1400),
@@ -372,7 +390,8 @@ class _WheelLoaderState extends State<WheelLoader> with SingleTickerProviderStat
         height: widget.size,
         child: AnimatedBuilder(
           animation: _c,
-          builder: (context, _) => CustomPaint(painter: _GearPainter(_c.value, widget.color)),
+          builder: (context, _) =>
+              CustomPaint(painter: _GearPainter(_c.value, widget.color)),
         ),
       ),
     );
@@ -443,7 +462,8 @@ class DotsLoader extends StatefulWidget {
   State<DotsLoader> createState() => _DotsLoaderState();
 }
 
-class _DotsLoaderState extends State<DotsLoader> with SingleTickerProviderStateMixin {
+class _DotsLoaderState extends State<DotsLoader>
+    with SingleTickerProviderStateMixin {
   late final AnimationController _c = AnimationController(
     vsync: this,
     duration: const Duration(milliseconds: 900),

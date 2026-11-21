@@ -4,7 +4,12 @@ import 'package:flutter/services.dart';
 
 /// State change of the native voice-note player.
 class PlayerEvent {
-  const PlayerEvent({required this.state, this.source, this.durationMs = 0, this.error});
+  const PlayerEvent({
+    required this.state,
+    this.source,
+    this.durationMs = 0,
+    this.error,
+  });
 
   factory PlayerEvent.fromMap(Map<dynamic, dynamic> m) {
     final d = m['durationMs'];
@@ -25,7 +30,12 @@ class PlayerEvent {
 
 /// Playback position snapshot.
 class PlayerPosition {
-  const PlayerPosition({this.positionMs = 0, this.durationMs = 0, this.playing = false, this.source});
+  const PlayerPosition({
+    this.positionMs = 0,
+    this.durationMs = 0,
+    this.playing = false,
+    this.source,
+  });
 
   final int positionMs;
   final int durationMs;
@@ -45,10 +55,13 @@ class AlertService {
 
   static final AlertService instance = AlertService._();
 
-  static const MethodChannel _channel = MethodChannel('com.speedyservice.partner/alerts');
+  static const MethodChannel _channel = MethodChannel(
+    'com.speedyservice.partner/alerts',
+  );
 
   final StreamController<String> _taps = StreamController<String>.broadcast();
-  final StreamController<PlayerEvent> _player = StreamController<PlayerEvent>.broadcast();
+  final StreamController<PlayerEvent> _player =
+      StreamController<PlayerEvent>.broadcast();
 
   /// Booking ids of job alerts the mechanic tapped (app already running).
   Stream<String> get incomingTaps => _taps.stream;
@@ -90,11 +103,14 @@ class AlertService {
       await _invoke<bool>('requestNotifications') ?? true;
 
   /// Android 14+: whether job alerts may open full screen over the lock screen.
-  Future<bool> canUseFullScreen() async => await _invoke<bool>('canFullScreen') ?? true;
+  Future<bool> canUseFullScreen() async =>
+      await _invoke<bool>('canFullScreen') ?? true;
 
-  Future<void> openFullScreenSettings() => _invoke<void>('openFullScreenSettings');
+  Future<void> openFullScreenSettings() =>
+      _invoke<void>('openFullScreenSettings');
 
-  Future<void> openNotificationSettings() => _invoke<void>('openNotificationSettings');
+  Future<void> openNotificationSettings() =>
+      _invoke<void>('openNotificationSettings');
 
   // ---------------------------------------------------------------------------
   // Job alerts
@@ -125,13 +141,15 @@ class AlertService {
   Future<String?> takeLaunchRequest() => _invoke<String>('takeLaunchRequest');
 
   /// Show the app over the lock screen (only while a job alert is open).
-  Future<void> setLockScreenMode(bool on) => _invoke<void>('setLockScreenMode', on);
+  Future<void> setLockScreenMode(bool on) =>
+      _invoke<void>('setLockScreenMode', on);
 
   // ---------------------------------------------------------------------------
   // Voice notes
   // ---------------------------------------------------------------------------
 
-  Future<void> playAudio(String httpsUrl) => _invoke<void>('playAudio', httpsUrl);
+  Future<void> playAudio(String httpsUrl) =>
+      _invoke<void>('playAudio', httpsUrl);
 
   Future<void> pauseAudio() => _invoke<void>('pauseAudio');
 

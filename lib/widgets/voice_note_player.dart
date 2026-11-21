@@ -119,11 +119,16 @@ class _VoiceNotePlayerState extends State<VoiceNotePlayer> {
 
   Future<String> _signedUrl() async {
     final cached = _urlCache[widget.path];
-    if (cached != null && cached.until.isAfter(DateTime.now())) return cached.url;
+    if (cached != null && cached.until.isAfter(DateTime.now())) {
+      return cached.url;
+    }
     final url = await Supabase.instance.client.storage
         .from(PartnerConstants.voiceNoteBucket)
         .createSignedUrl(widget.path, 600);
-    _urlCache[widget.path] = (url: url, until: DateTime.now().add(const Duration(minutes: 9)));
+    _urlCache[widget.path] = (
+      url: url,
+      until: DateTime.now().add(const Duration(minutes: 9)),
+    );
     return url;
   }
 
@@ -162,7 +167,9 @@ class _VoiceNotePlayerState extends State<VoiceNotePlayer> {
   Widget build(BuildContext context) {
     final dark = widget.dark;
     final fg = dark ? Colors.white : PartnerConstants.darkColor;
-    final bg = dark ? Colors.white.withValues(alpha: 0.10) : const Color(0xFFFFF3EE);
+    final bg = dark
+        ? Colors.white.withValues(alpha: 0.10)
+        : const Color(0xFFFFF3EE);
     final progress = _durMs > 0 ? (_posMs / _durMs).clamp(0.0, 1.0) : 0.0;
     final playing = _state == _PlayState.playing;
 
@@ -189,10 +196,15 @@ class _VoiceNotePlayerState extends State<VoiceNotePlayer> {
                   child: _state == _PlayState.loading
                       ? const Padding(
                           padding: EdgeInsets.all(11),
-                          child: CircularProgressIndicator(strokeWidth: 2.4, color: Colors.white),
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2.4,
+                            color: Colors.white,
+                          ),
                         )
                       : Icon(
-                          playing ? Icons.pause_rounded : Icons.play_arrow_rounded,
+                          playing
+                              ? Icons.pause_rounded
+                              : Icons.play_arrow_rounded,
                           color: Colors.white,
                           size: 26,
                         ),
@@ -219,7 +231,9 @@ class _VoiceNotePlayerState extends State<VoiceNotePlayer> {
                       Row(
                         children: <Widget>[
                           Icon(
-                            _state == _PlayState.error ? Icons.error_outline_rounded : Icons.mic_rounded,
+                            _state == _PlayState.error
+                                ? Icons.error_outline_rounded
+                                : Icons.mic_rounded,
                             size: 13,
                             color: _state == _PlayState.error
                                 ? PartnerConstants.dangerColor
@@ -253,7 +267,9 @@ class _VoiceNotePlayerState extends State<VoiceNotePlayer> {
                   style: TextStyle(
                     color: fg,
                     fontWeight: FontWeight.w700,
-                    fontFeatures: const <FontFeature>[FontFeature.tabularFigures()],
+                    fontFeatures: const <FontFeature>[
+                      FontFeature.tabularFigures(),
+                    ],
                   ),
                 ),
               ],
@@ -289,7 +305,8 @@ class _WavePainter extends CustomPainter {
       ..strokeWidth = math.max(2, gap * 0.5);
     for (var i = 0; i < bars; i++) {
       final shape = 0.35 + 0.65 * math.sin((i / bars) * math.pi);
-      final h = size.height * (0.2 + 0.8 * shape * (0.45 + 0.55 * rnd.nextDouble()));
+      final h =
+          size.height * (0.2 + 0.8 * shape * (0.45 + 0.55 * rnd.nextDouble()));
       final x = gap * (i + 0.5);
       paint.color = (i / bars) <= progress ? active : idle;
       canvas.drawLine(

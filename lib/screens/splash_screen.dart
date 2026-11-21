@@ -33,7 +33,10 @@ class _SplashScreenState extends State<SplashScreen> {
           .fetchMinPartnerVersion()
           .timeout(const Duration(seconds: 6));
       if (minVersion != null &&
-          PartnerConstants.isVersionOlder(PartnerConstants.appVersion, minVersion)) {
+          PartnerConstants.isVersionOlder(
+            PartnerConstants.appVersion,
+            minVersion,
+          )) {
         if (!mounted) return;
         setState(() => _needsUpdate = true);
         return;
@@ -57,7 +60,11 @@ class _SplashScreenState extends State<SplashScreen> {
             children: <Widget>[
               ClipRRect(
                 borderRadius: BorderRadius.circular(30),
-                child: Image.asset('assets/images/logo.png', width: 112, height: 112),
+                child: Image.asset(
+                  'assets/images/logo.png',
+                  width: 112,
+                  height: 112,
+                ),
               ),
               const SizedBox(height: 20),
               const Text(
@@ -98,7 +105,10 @@ class _SplashScreenState extends State<SplashScreen> {
                   child: const RoadLoader(
                     color: PartnerConstants.darkColor,
                     width: 220,
-                    messages: <String>['Starting the engine…', 'Connecting to 8Speedy…'],
+                    messages: <String>[
+                      'Starting the engine…',
+                      'Connecting to 8Speedy…',
+                    ],
                   ),
                 ),
             ],

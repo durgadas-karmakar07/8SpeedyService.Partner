@@ -51,7 +51,9 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   Timer? _pollTimer;
 
   // Call-style job alerts
-  final ValueNotifier<Set<String>> _liveIds = ValueNotifier<Set<String>>(<String>{});
+  final ValueNotifier<Set<String>> _liveIds = ValueNotifier<Set<String>>(
+    <String>{},
+  );
   StreamSubscription<String>? _tapSub;
   bool _inForeground = true;
   bool _callOpen = false;
@@ -59,6 +61,10 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   String? _notifiedId;
   bool _notifAllowed = true;
   bool _fullScreenAllowed = true;
+
+  // Earnings strip + suspension notice
+  PartnerStats? _stats;
+  DateTime? _statsAt;
 
   @override
   void initState() {
@@ -73,8 +79,25 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     // Coming back from a job, or the server still thinks we're online
     // (app was killed) -> resume online mode without asking again.
     if (widget.profile.isOnline || _location.isTracking) {
-      WidgetsBinding.instance.addPostFrameCallback((_) => _goOnline(silent: true));
+      WidgetsBinding.instance.addPostFrameCallback(
+        (_) => _goOnline(silent: true),
+      );
     }
+    _loadStats();
+  }
+
+  Future<void> _loadStats({bool force = false}) async {
+    final at = _statsAt;
+    if (!force &&
+        at != null &&
+        DateTime.now().difference(at) < const Duration(minutes: 2)) {
+      return;
+    }
+    _statsAt = DateTime.now();
+    try {
+      final stats = await _api.getStats();
+      if (mounted) setState(() => _stats = stats);
+    } catch (_) {}
   }
 
   @override
@@ -90,8 +113,13 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
+    final wasForeground = _inForeground;
     _inForeground = state == AppLifecycleState.resumed;
+    // Poll a little slower in the background (battery + server load), but
+    // still fast enough to ring for new requests.
+    if (_online && wasForeground != _inForeground) _restartPolling();
     if (state != AppLifecycleState.resumed) return;
+    _loadStats();
     _refreshAlertPermissions();
     // Opened from the launcher while a job alert was ringing -> show it.
     final ringing = _notifiedId;
@@ -126,7 +154,10 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     final ok = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        icon: const Icon(Icons.location_on_rounded, color: PartnerConstants.primaryColor),
+        icon: const Icon(
+          Icons.location_on_rounded,
+          color: PartnerConstants.primaryColor,
+        ),
         title: const Text('Location access'),
         content: const Text(
           'When you are Online, 8Speedy Partner uses your location to:\n\n'
@@ -135,7 +166,10 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
           'While Online, location is shared even when the app is in the background (a notification is shown). It stops as soon as you go Offline.',
         ),
         actions: <Widget>[
-          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Not now')),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Not now'),
+          ),
           FilledButton(
             style: FilledButton.styleFrom(minimumSize: const Size(100, 44)),
             onPressed: () => Navigator.pop(ctx, true),
@@ -162,10 +196,16 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
       final pos = await _location.currentPosition();
       if (!mounted) return;
       if (pos == null) {
-        _snack('Could not get your GPS location. Move to an open area and try again.');
+        _snack(
+          'Could not get your GPS location. Move to an open area and try again.',
+        );
         return;
       }
-      await _api.setStatus(isOnline: true, lat: pos.latitude, lng: pos.longitude);
+      await _api.setStatus(
+        isOnline: true,
+        lat: pos.latitude,
+        lng: pos.longitude,
+      );
       _location.start();
       if (!mounted) return;
       setState(() {
@@ -211,15 +251,24 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   // ---------------------------------------------------------------------------
 
   void _startPolling() {
-    _pollTimer?.cancel();
     _refresh();
-    _pollTimer = Timer.periodic(PartnerConstants.requestPollInterval, (_) => _refresh());
+    _restartPolling();
+  }
+
+  void _restartPolling() {
+    _pollTimer?.cancel();
+    final interval = _inForeground
+        ? PartnerConstants.requestPollInterval
+        : PartnerConstants.backgroundPollInterval;
+    _pollTimer = Timer.periodic(interval, (_) => _refresh());
   }
 
   Future<void> _refresh() async {
     if (!_online) return;
     try {
-      final list = await _api.getOpenRequests(PartnerConstants.requestRadiusMeters);
+      final list = await _api.getOpenRequests(
+        PartnerConstants.requestRadiusMeters,
+      );
       if (!mounted || !_online) return;
 
       final fresh = list.where((r) => !_seenIds.contains(r.bookingId)).toList();
@@ -306,13 +355,14 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
         .showIncoming(
           bookingId: r.bookingId,
           title: '🔔 New job • ${Fmt.distance(r.distanceMeters)} away',
-          body: '${vehicleName(r.vehicleLabel, r.vehicleType)}'
+          body:
+              '${vehicleName(r.vehicleLabel, r.vehicleType)}'
               '${issues.isEmpty ? '' : ' — $issues'}'
               '${r.voiceNotePath != null ? ' • 🎤 voice note' : ''}',
         )
         .then((shown) {
-      if (!shown) SystemSound.play(SystemSoundType.alert);
-    });
+          if (!shown) SystemSound.play(SystemSoundType.alert);
+        });
   }
 
   /// The mechanic tapped a job alert (or opened the app while it rang).
@@ -338,12 +388,15 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     final decision = await Navigator.of(context).push<IncomingDecision>(
       PageRouteBuilder<IncomingDecision>(
         transitionDuration: const Duration(milliseconds: 280),
-        pageBuilder: (_, _, _) => IncomingRequestScreen(request: r, liveIds: _liveIds),
+        pageBuilder: (_, _, _) =>
+            IncomingRequestScreen(request: r, liveIds: _liveIds),
         transitionsBuilder: (_, anim, _, child) => FadeTransition(
           opacity: anim,
           child: SlideTransition(
-            position: Tween<Offset>(begin: const Offset(0, 0.06), end: Offset.zero)
-                .animate(anim),
+            position: Tween<Offset>(
+              begin: const Offset(0, 0.06),
+              end: Offset.zero,
+            ).animate(anim),
             child: child,
           ),
         ),
@@ -384,6 +437,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
       if (await _handleFatal(e)) return;
       _snack(ErrorHelper.friendly(e));
       _refresh();
+      _loadStats(force: true);
     } finally {
       if (mounted) setState(() => _acceptingId = null);
     }
@@ -441,8 +495,14 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
         title: const Text('Logout?'),
         content: const Text('You will go offline and stop receiving requests.'),
         actions: <Widget>[
-          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')),
-          TextButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('Logout')),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('Logout'),
+          ),
         ],
       ),
     );
@@ -473,14 +533,18 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
             tooltip: 'My Jobs',
             icon: const Icon(Icons.history_rounded),
             onPressed: () => Navigator.of(context).push(
-              MaterialPageRoute<void>(builder: (_) => HistoryScreen(profile: p)),
+              MaterialPageRoute<void>(
+                builder: (_) => HistoryScreen(profile: p),
+              ),
             ),
           ),
           PopupMenuButton<String>(
             onSelected: (v) {
               if (v == 'account') {
                 Navigator.of(context).push(
-                  MaterialPageRoute<void>(builder: (_) => AccountScreen(profile: widget.profile)),
+                  MaterialPageRoute<void>(
+                    builder: (_) => AccountScreen(profile: widget.profile),
+                  ),
                 );
               } else if (v == 'support') {
                 launchUrl(
@@ -502,8 +566,11 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
       body: Column(
         children: <Widget>[
           _statusCard(),
+          if (_stats?.isSuspended == true) _suspendedBanner(_stats!),
+          if (_stats != null) _earningsStrip(_stats!),
           if (_locationIssue != LocationIssue.none) _locationBanner(),
-          if (_online && (!_notifAllowed || !_fullScreenAllowed)) _alertsBanner(),
+          if (_online && (!_notifAllowed || !_fullScreenAllowed))
+            _alertsBanner(),
           Expanded(child: _online ? _onlineBody() : _offlineBody()),
         ],
       ),
@@ -545,7 +612,10 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                     _online
                         ? 'Nearby requests will appear here'
                         : 'Go online to receive jobs',
-                    style: TextStyle(fontSize: 12.5, color: Colors.blueGrey.shade600),
+                    style: TextStyle(
+                      fontSize: 12.5,
+                      color: Colors.blueGrey.shade600,
+                    ),
                   ),
                 ],
               ),
@@ -567,26 +637,115 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     );
   }
 
+  Widget _suspendedBanner(PartnerStats stats) {
+    final until = stats.suspendedUntil!;
+    final h = until.hour % 12 == 0 ? 12 : until.hour % 12;
+    final time =
+        '$h:${until.minute.toString().padLeft(2, '0')} ${until.hour < 12 ? 'AM' : 'PM'}';
+    return Container(
+      width: double.infinity,
+      margin: const EdgeInsets.fromLTRB(16, 12, 16, 0),
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: const Color(0xFFFEF2F2),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: const Color(0xFFFCA5A5)),
+      ),
+      child: Row(
+        children: <Widget>[
+          const Icon(
+            Icons.pause_circle_filled_rounded,
+            color: PartnerConstants.dangerColor,
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Text(
+              'New jobs are paused until $time because several jobs were released in 24 hours. '
+              'Finishing accepted jobs keeps your account in good standing.',
+              style: const TextStyle(
+                fontSize: 12.5,
+                color: Color(0xFF7F1D1D),
+                height: 1.35,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _earningsStrip(PartnerStats stats) {
+    Widget cell(String value, String label) => Expanded(
+      child: Column(
+        children: <Widget>[
+          Text(
+            value,
+            style: const TextStyle(
+              fontSize: 17,
+              fontWeight: FontWeight.w800,
+              color: PartnerConstants.darkColor,
+            ),
+          ),
+          const SizedBox(height: 2),
+          Text(
+            label,
+            style: TextStyle(fontSize: 11.5, color: Colors.blueGrey.shade600),
+          ),
+        ],
+      ),
+    );
+    return Container(
+      margin: const EdgeInsets.fromLTRB(16, 12, 16, 0),
+      padding: const EdgeInsets.symmetric(vertical: 12),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: <BoxShadow>[
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.05),
+            blurRadius: 12,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Row(
+        children: <Widget>[
+          cell('₹${stats.todayEarnings}', 'Today'),
+          cell('${stats.todayCompleted}', 'Jobs today'),
+          cell('₹${stats.weekEarnings}', 'This week'),
+          cell(
+            '★ ${stats.rating.toStringAsFixed(1)}',
+            '${stats.ratingCount} ratings',
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget _locationBanner() {
-    final (String text, String action, Future<bool> Function() open) = switch (_locationIssue) {
+    final (
+      String text,
+      String action,
+      Future<bool> Function() open,
+    ) = switch (_locationIssue) {
       LocationIssue.serviceOff => (
-          'Your phone\'s GPS / location is turned off.',
-          'Turn on',
-          Geolocator.openLocationSettings,
-        ),
+        'Your phone\'s GPS / location is turned off.',
+        'Turn on',
+        Geolocator.openLocationSettings,
+      ),
       LocationIssue.deniedForever => (
-          'Location permission is blocked. Allow it in Settings.',
-          'Settings',
-          Geolocator.openAppSettings,
-        ),
+        'Location permission is blocked. Allow it in Settings.',
+        'Settings',
+        Geolocator.openAppSettings,
+      ),
       _ => (
-          'Location permission is required to go online.',
-          'Retry',
-          () async {
-            await _goOnline();
-            return true;
-          },
-        ),
+        'Location permission is required to go online.',
+        'Retry',
+        () async {
+          await _goOnline();
+          return true;
+        },
+      ),
     };
     return Container(
       width: double.infinity,
@@ -594,7 +753,10 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
       child: Row(
         children: <Widget>[
-          const Icon(Icons.location_off_rounded, color: PartnerConstants.warningColor),
+          const Icon(
+            Icons.location_off_rounded,
+            color: PartnerConstants.warningColor,
+          ),
           const SizedBox(width: 10),
           Expanded(child: Text(text, style: const TextStyle(fontSize: 13))),
           TextButton(onPressed: open, child: Text(action)),
@@ -611,7 +773,10 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
       padding: const EdgeInsets.fromLTRB(16, 8, 8, 8),
       child: Row(
         children: <Widget>[
-          const Icon(Icons.ring_volume_rounded, color: PartnerConstants.primaryColor),
+          const Icon(
+            Icons.ring_volume_rounded,
+            color: PartnerConstants.primaryColor,
+          ),
           const SizedBox(width: 10),
           Expanded(
             child: Text(
@@ -643,7 +808,11 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
       padding: const EdgeInsets.all(24),
       children: <Widget>[
         const SizedBox(height: 24),
-        Icon(Icons.power_settings_new_rounded, size: 84, color: Colors.blueGrey.shade300),
+        Icon(
+          Icons.power_settings_new_rounded,
+          size: 84,
+          color: Colors.blueGrey.shade300,
+        ),
         const SizedBox(height: 16),
         const Text(
           'You are offline',
@@ -657,14 +826,22 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
           style: TextStyle(color: Colors.blueGrey.shade600, height: 1.4),
         ),
         const SizedBox(height: 24),
-        _tip(Icons.ring_volume_rounded,
-            'New requests ring like a phone call — even when the screen is off.'),
-        _tip(Icons.notifications_active_rounded,
-            'While online, do not swipe the app away from recent apps.'),
-        _tip(Icons.battery_saver_rounded,
-            'Set 8Speedy Partner to "Unrestricted" in battery settings.'),
-        _tip(Icons.pin_rounded,
-            'Always take the customer\'s 4-digit Start OTP before starting work.'),
+        _tip(
+          Icons.ring_volume_rounded,
+          'New requests ring like a phone call — even when the screen is off.',
+        ),
+        _tip(
+          Icons.notifications_active_rounded,
+          'While online, do not swipe the app away from recent apps.',
+        ),
+        _tip(
+          Icons.battery_saver_rounded,
+          'Set 8Speedy Partner to "Unrestricted" in battery settings.',
+        ),
+        _tip(
+          Icons.pin_rounded,
+          'Always take the customer\'s 4-digit Start OTP before starting work.',
+        ),
       ],
     );
   }
@@ -696,11 +873,13 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
               children: <Widget>[
                 Text(
                   'Nearby requests (${_requests.length})',
-                  style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w800),
+                  style: const TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w800,
+                  ),
                 ),
                 const Spacer(),
-                if (!_firstLoadDone)
-                  const WheelLoader(size: 14),
+                if (!_firstLoadDone) const WheelLoader(size: 14),
               ],
             ),
           ),
@@ -714,7 +893,11 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
               padding: const EdgeInsets.all(32),
               child: Column(
                 children: <Widget>[
-                  Icon(Icons.radar_rounded, size: 56, color: Colors.blueGrey.shade300),
+                  Icon(
+                    Icons.radar_rounded,
+                    size: 56,
+                    color: Colors.blueGrey.shade300,
+                  ),
                   const SizedBox(height: 10),
                   const Text(
                     'No requests right now.\nYour phone will ring when a new request arrives.',
@@ -736,7 +919,12 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
         return FlutterMap(
           mapController: _mapController,
           options: MapOptions(
-            initialCenter: me ?? const LatLng(PartnerConstants.defaultLat, PartnerConstants.defaultLng),
+            initialCenter:
+                me ??
+                const LatLng(
+                  PartnerConstants.defaultLat,
+                  PartnerConstants.defaultLng,
+                ),
             initialZoom: 14,
             onMapReady: () {
               _mapReady = true;
@@ -755,8 +943,11 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                     point: LatLng(r.lat, r.lng),
                     width: 40,
                     height: 40,
-                    child: const Icon(Icons.location_on_rounded,
-                        color: PartnerConstants.primaryColor, size: 40),
+                    child: const Icon(
+                      Icons.location_on_rounded,
+                      color: PartnerConstants.primaryColor,
+                      size: 40,
+                    ),
                   ),
                 ),
                 if (me != null)
@@ -811,20 +1002,38 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: <Widget>[
-                      Text(vehicleName(r.vehicleLabel, r.vehicleType),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 15)),
+                      Text(
+                        vehicleName(r.vehicleLabel, r.vehicleType),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
+                          fontWeight: FontWeight.w700,
+                          fontSize: 15,
+                        ),
+                      ),
                       if (r.vehicleLabel != null)
-                        Text(vehicle.title,
-                            style: TextStyle(fontSize: 12, color: Colors.blueGrey.shade500)),
-                      Text(Fmt.ago(r.createdAt),
-                          style: TextStyle(fontSize: 12, color: Colors.blueGrey.shade500)),
+                        Text(
+                          vehicle.title,
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: Colors.blueGrey.shade500,
+                          ),
+                        ),
+                      Text(
+                        Fmt.ago(r.createdAt),
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: Colors.blueGrey.shade500,
+                        ),
+                      ),
                     ],
                   ),
                 ),
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 10,
+                    vertical: 5,
+                  ),
                   decoration: BoxDecoration(
                     color: PartnerConstants.darkColor,
                     borderRadius: BorderRadius.circular(20),
@@ -845,29 +1054,73 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
               spacing: 6,
               runSpacing: 6,
               children: r.issueTags
-                  .map((t) => Chip(
-                        label: Text(t, style: const TextStyle(fontSize: 12)),
-                        visualDensity: VisualDensity.compact,
-                        materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                      ))
+                  .map(
+                    (t) => Chip(
+                      label: Text(t, style: const TextStyle(fontSize: 12)),
+                      visualDensity: VisualDensity.compact,
+                      materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                    ),
+                  )
                   .toList(),
             ),
             if (r.issueNote != null) ...<Widget>[
               const SizedBox(height: 6),
-              Text('“${r.issueNote}”',
-                  style: TextStyle(fontStyle: FontStyle.italic, color: Colors.blueGrey.shade700)),
+              Text(
+                '“${r.issueNote}”',
+                style: TextStyle(
+                  fontStyle: FontStyle.italic,
+                  color: Colors.blueGrey.shade700,
+                ),
+              ),
             ],
             if (r.voiceNotePath != null) ...<Widget>[
               const SizedBox(height: 8),
-              VoiceNotePlayer(path: r.voiceNotePath!, seconds: r.voiceNoteSeconds),
+              VoiceNotePlayer(
+                path: r.voiceNotePath!,
+                seconds: r.voiceNoteSeconds,
+              ),
+            ],
+            if (r.aiSummary != null) ...<Widget>[
+              const SizedBox(height: 8),
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: <Widget>[
+                  const Icon(
+                    Icons.auto_awesome_rounded,
+                    size: 16,
+                    color: PartnerConstants.primaryColor,
+                  ),
+                  const SizedBox(width: 6),
+                  Expanded(
+                    child: Text(
+                      'AI: ${r.aiSummary}',
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        fontSize: 12.5,
+                        color: Colors.blueGrey.shade700,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
             ],
             const SizedBox(height: 8),
             Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: <Widget>[
-                Icon(Icons.place_outlined, size: 18, color: Colors.blueGrey.shade500),
+                Icon(
+                  Icons.place_outlined,
+                  size: 18,
+                  color: Colors.blueGrey.shade500,
+                ),
                 const SizedBox(width: 6),
-                Expanded(child: Text(r.pickupAddress, style: const TextStyle(fontSize: 13))),
+                Expanded(
+                  child: Text(
+                    r.pickupAddress,
+                    style: const TextStyle(fontSize: 13),
+                  ),
+                ),
               ],
             ),
             const SizedBox(height: 12),
@@ -877,9 +1130,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                 backgroundColor: PartnerConstants.successColor,
                 minimumSize: const Size.fromHeight(48),
               ),
-              child: accepting
-                  ? const DotsLoader()
-                  : const Text('Accept Job'),
+              child: accepting ? const DotsLoader() : const Text('Accept Job'),
             ),
           ],
         ),

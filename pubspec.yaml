@@ -3,7 +3,7 @@ description: "8SpeedyService Partner - mechanic app for accepting roadside repai
 publish_to: 'none'
 
 # Keep in sync with PartnerConstants.appVersion (used for force-update).
-version: 1.0.0+1
+version: 1.1.0+2
 
 environment:
   sdk: ^3.14.0
@@ -13,11 +13,11 @@ dependencies:
     sdk: flutter
   material_ui: ^1.1.0
   supabase_flutter: ^2.8.0
-  flutter_map: ^7.0.2
-  latlong2: ^0.9.1
-  geolocator: ^13.0.1
+  flutter_map: ^8.3.2
+  latlong2: ^0.10.1
+  geolocator: ^14.1.2
   url_launcher: ^6.3.1
-  cupertino_icons: ^1.0.8
+  cupertino_icons: ^2.0.0
 
 dev_dependencies:
   flutter_test:

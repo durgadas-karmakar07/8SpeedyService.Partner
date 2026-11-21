@@ -11,7 +11,10 @@ class LegalScreen extends StatelessWidget {
   final LegalDoc doc;
 
   Future<void> _openWeb(BuildContext context) async {
-    final ok = await launchUrl(Uri.parse(doc.url), mode: LaunchMode.externalApplication);
+    final ok = await launchUrl(
+      Uri.parse(doc.url),
+      mode: LaunchMode.externalApplication,
+    );
     if (!ok && context.mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Could not open the website.')),
@@ -54,13 +57,19 @@ class LegalScreen extends StatelessWidget {
               const SizedBox(height: 6),
               Text(
                 s.body,
-                style: TextStyle(fontSize: 14, height: 1.55, color: Colors.blueGrey.shade800),
+                style: TextStyle(
+                  fontSize: 14,
+                  height: 1.55,
+                  color: Colors.blueGrey.shade800,
+                ),
               ),
             ],
             const SizedBox(height: 24),
             OutlinedButton.icon(
               onPressed: () => _openWeb(context),
-              style: OutlinedButton.styleFrom(minimumSize: const Size.fromHeight(48)),
+              style: OutlinedButton.styleFrom(
+                minimumSize: const Size.fromHeight(48),
+              ),
               icon: const Icon(Icons.public_rounded),
               label: const Text('View on website'),
             ),
