@@ -13,7 +13,9 @@ String vehicleName(String? label, String category, {bool withPlate = false}) {
 /// Number plate part of the label ("WB38AB1234"), if any.
 String? vehiclePlate(String? label) {
   final parts = (label ?? '').split(' • ');
-  return parts.length > 1 && parts[1].trim().isNotEmpty ? parts[1].trim() : null;
+  return parts.length > 1 && parts[1].trim().isNotEmpty
+      ? parts[1].trim()
+      : null;
 }
 
 class VehicleImage extends StatelessWidget {

@@ -30,10 +30,7 @@ class AuthService {
     );
   }
 
-  Future<AuthResponse> verifyOtp({
-    required String phone,
-    required String otp,
-  }) {
+  Future<AuthResponse> verifyOtp({required String phone, required String otp}) {
     return _client.auth.verifyOTP(
       phone: normalizeIndianPhone(phone),
       token: otp.trim(),

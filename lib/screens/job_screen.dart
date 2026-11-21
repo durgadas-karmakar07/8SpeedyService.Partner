@@ -10,9 +10,12 @@ import '../core/constants.dart';
 import '../core/error_helper.dart';
 import '../core/vehicle_view.dart';
 import '../models/models.dart';
+import '../services/job_live.dart';
 import '../services/location_service.dart';
 import '../services/partner_service.dart';
+import '../widgets/repair_guide_sheet.dart';
 import 'account_gate.dart';
+import 'chat_screen.dart';
 import 'home_screen.dart';
 import '../widgets/speedy_loader.dart';
 import '../widgets/voice_note_player.dart';
@@ -40,6 +43,8 @@ class _JobScreenState extends State<JobScreen> with WidgetsBindingObserver {
   bool _mapReady = false;
   String? _otpError;
   Timer? _pollTimer;
+  JobLive? _live;
+  late bool _chatUnread = widget.job.unreadMessages > 0;
 
   LatLng get _pickup => LatLng(_job.lat, _job.lng);
 
@@ -48,13 +53,30 @@ class _JobScreenState extends State<JobScreen> with WidgetsBindingObserver {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
     _ensureTracking();
-    _pollTimer = Timer.periodic(PartnerConstants.jobPollInterval, (_) => _poll());
+    _pollTimer = Timer.periodic(
+      PartnerConstants.jobPollInterval,
+      (_) => _poll(),
+    );
+    // Instant updates (customer cancelled, new chat message) over private
+    // Realtime Broadcast; the poll above stays as the safety net.
+    _live = JobLive(
+      bookingId: widget.job.bookingId,
+      mechanicId: widget.profile.id,
+      onStatus: _poll,
+      onChat: (sender) {
+        if (sender == 'customer' && mounted) {
+          HapticFeedback.mediumImpact();
+          setState(() => _chatUnread = true);
+        }
+      },
+    )..start();
   }
 
   @override
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
     _pollTimer?.cancel();
+    _live?.dispose();
     _otpController.dispose();
     super.dispose();
   }
@@ -78,7 +100,11 @@ class _JobScreenState extends State<JobScreen> with WidgetsBindingObserver {
     }
     final pos = await _location.currentPosition();
     try {
-      await _api.setStatus(isOnline: true, lat: pos?.latitude, lng: pos?.longitude);
+      await _api.setStatus(
+        isOnline: true,
+        lat: pos?.latitude,
+        lng: pos?.longitude,
+      );
     } catch (_) {}
     _location.start();
   }
@@ -96,7 +122,10 @@ class _JobScreenState extends State<JobScreen> with WidgetsBindingObserver {
         await _onJobGone();
         return;
       }
-      setState(() => _job = job);
+      setState(() {
+        _job = job;
+        if (job.unreadMessages > 0) _chatUnread = true;
+      });
     } catch (e) {
       await _handleFatal(e);
     }
@@ -113,7 +142,8 @@ class _JobScreenState extends State<JobScreen> with WidgetsBindingObserver {
     if (!mounted) return;
 
     final message = switch (status) {
-      PartnerConstants.statusCancelled => 'The customer has cancelled this booking.',
+      PartnerConstants.statusCancelled =>
+        'The customer has cancelled this booking.',
       PartnerConstants.statusCompleted => 'This job is already completed.',
       _ => 'This job is no longer assigned to you.',
     };
@@ -122,11 +152,17 @@ class _JobScreenState extends State<JobScreen> with WidgetsBindingObserver {
       context: context,
       barrierDismissible: false,
       builder: (ctx) => AlertDialog(
-        icon: const Icon(Icons.info_outline_rounded, color: PartnerConstants.warningColor),
+        icon: const Icon(
+          Icons.info_outline_rounded,
+          color: PartnerConstants.warningColor,
+        ),
         title: const Text('Job closed'),
         content: Text(message),
         actions: <Widget>[
-          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('OK')),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('OK'),
+          ),
         ],
       ),
     );
@@ -168,16 +204,18 @@ class _JobScreenState extends State<JobScreen> with WidgetsBindingObserver {
   // ---------------------------------------------------------------------------
 
   Future<void> _markArrived() => _run(() async {
-        await _api.markArrived(_job.bookingId);
-        final job = await _api.getActiveJob();
-        if (job != null && mounted) setState(() => _job = job);
-        _snack('The customer has been told that you have arrived.');
-      });
+    await _api.markArrived(_job.bookingId);
+    final job = await _api.getActiveJob();
+    if (job != null && mounted) setState(() => _job = job);
+    _snack('The customer has been told that you have arrived.');
+  });
 
   Future<void> _startJob() async {
     final otp = _otpController.text.trim();
     if (!RegExp(r'^\d{4}$').hasMatch(otp)) {
-      setState(() => _otpError = 'Enter the 4-digit OTP shown in the customer\'s app.');
+      setState(
+        () => _otpError = 'Enter the 4-digit OTP shown in the customer\'s app.',
+      );
       return;
     }
     FocusScope.of(context).unfocus();
@@ -191,41 +229,93 @@ class _JobScreenState extends State<JobScreen> with WidgetsBindingObserver {
         final job = await _api.getActiveJob();
         if (job != null && mounted) setState(() => _job = job);
         _snack('OTP verified. You can start the work! 🔧');
+      } else if (res.locked) {
+        setState(
+          () => _otpError = res.message ?? 'Too many wrong OTPs. Ask the customer to tap "New OTP" in their app, then enter the new one.',
+        );
       } else {
         final left = res.attemptsLeft;
-        setState(() => _otpError = [
-              res.message ?? 'Wrong OTP.',
-              if (left != null) '$left attempts left.',
-            ].join(' '));
+        setState(
+          () => _otpError = [
+            res.message ?? 'Wrong OTP.',
+            if (left != null) '$left attempts left.',
+          ].join(' '),
+        );
       }
     });
   }
 
   Future<void> _complete() async {
+    final amountCtrl = TextEditingController();
+    final notesCtrl = TextEditingController();
     final ok = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
         title: const Text('Job complete?'),
-        content: const Text(
-          'Is the vehicle fixed and have you collected the repair payment from the customer?',
+        content: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: <Widget>[
+              const Text(
+                'Enter the amount the customer paid you for the repair (labour + parts). '
+                'It shows on the customer\'s bill and in your earnings.',
+                style: TextStyle(fontSize: 13),
+              ),
+              const SizedBox(height: 12),
+              TextField(
+                controller: amountCtrl,
+                autofocus: true,
+                keyboardType: TextInputType.number,
+                inputFormatters: <TextInputFormatter>[
+                  FilteringTextInputFormatter.digitsOnly,
+                  LengthLimitingTextInputFormatter(6),
+                ],
+                decoration: const InputDecoration(
+                  prefixText: '₹ ',
+                  labelText: 'Repair amount',
+                  hintText: 'e.g. 350',
+                ),
+              ),
+              const SizedBox(height: 10),
+              TextField(
+                controller: notesCtrl,
+                maxLength: 150,
+                decoration: const InputDecoration(
+                  labelText: 'What did you fix? (optional)',
+                  hintText: 'e.g. Puncture repaired, tube patched',
+                ),
+              ),
+            ],
+          ),
         ),
         actions: <Widget>[
-          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('No')),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Not yet'),
+          ),
           FilledButton(
             style: FilledButton.styleFrom(
               backgroundColor: PartnerConstants.successColor,
               minimumSize: const Size(120, 44),
             ),
             onPressed: () => Navigator.pop(ctx, true),
-            child: const Text('Yes, complete'),
+            child: const Text('Complete job'),
           ),
         ],
       ),
     );
+    final amount = int.tryParse(amountCtrl.text.trim());
+    final notes = notesCtrl.text.trim();
+    amountCtrl.dispose();
+    notesCtrl.dispose();
     if (ok != true) return;
-
     await _run(() async {
-      await _api.completeJob(_job.bookingId);
+      await _api.completeJob(
+        _job.bookingId,
+        repairAmount: amount,
+        notes: notes.isEmpty ? null : notes,
+      );
       _closed = true;
       _pollTimer?.cancel();
       if (!mounted) return;
@@ -234,10 +324,17 @@ class _JobScreenState extends State<JobScreen> with WidgetsBindingObserver {
         context: context,
         barrierDismissible: false,
         builder: (ctx) => AlertDialog(
-          icon: const Icon(Icons.verified_rounded,
-              color: PartnerConstants.successColor, size: 56),
+          icon: const Icon(
+            Icons.verified_rounded,
+            color: PartnerConstants.successColor,
+            size: 56,
+          ),
           title: const Text('Great job! Job completed 🎉'),
-          content: const Text('The customer will now rate you. Better ratings mean more jobs.'),
+          content: Text(
+            amount != null
+                ? 'Bill of ₹$amount saved to your earnings. The customer will now rate you.'
+                : 'The customer will now rate you. Better ratings mean more jobs.',
+          ),
           actions: <Widget>[
             FilledButton(
               style: FilledButton.styleFrom(minimumSize: const Size(140, 44)),
@@ -249,6 +346,28 @@ class _JobScreenState extends State<JobScreen> with WidgetsBindingObserver {
       );
       _goHome();
     });
+  }
+
+  Future<void> _openChat() async {
+    setState(() => _chatUnread = false);
+    await Navigator.of(context).push(
+      MaterialPageRoute<void>(
+        builder: (_) => ChatScreen(
+          bookingId: _job.bookingId,
+          mechanicId: widget.profile.id,
+          title: _job.customerName,
+        ),
+      ),
+    );
+  }
+
+  void _openGuide() {
+    showRepairGuide(
+      context,
+      api: _api,
+      bookingId: _job.bookingId,
+      vehicleName: vehicleName(_job.vehicleLabel, _job.vehicleType),
+    );
   }
 
   Future<void> _release() async {
@@ -298,9 +417,15 @@ class _JobScreenState extends State<JobScreen> with WidgetsBindingObserver {
   }
 
   Future<void> _callCustomer() async {
-    final phone = _job.customerPhone;
-    if (phone == null) {
-      _snack('Customer\'s number is not available.');
+    String? phone;
+    try {
+      phone = await _api.getCustomerPhone(_job);
+    } catch (e) {
+      _snack(ErrorHelper.friendly(e));
+      return;
+    }
+    if (phone == null || phone.isEmpty) {
+      _snack('Customer\'s number is not available — please use the chat.');
       return;
     }
     final ok = await launchUrl(Uri(scheme: 'tel', path: phone));
@@ -389,7 +514,8 @@ class _JobScreenState extends State<JobScreen> with WidgetsBindingObserver {
               children: <Widget>[
                 TileLayer(
                   urlTemplate: PartnerConstants.osmTileUrl,
-                  userAgentPackageName: PartnerConstants.osmUserAgentPackageName,
+                  userAgentPackageName:
+                      PartnerConstants.osmUserAgentPackageName,
                 ),
                 MarkerLayer(
                   markers: <Marker>[
@@ -397,8 +523,11 @@ class _JobScreenState extends State<JobScreen> with WidgetsBindingObserver {
                       point: _pickup,
                       width: 44,
                       height: 44,
-                      child: const Icon(Icons.location_on_rounded,
-                          color: PartnerConstants.primaryColor, size: 44),
+                      child: const Icon(
+                        Icons.location_on_rounded,
+                        color: PartnerConstants.primaryColor,
+                        size: 44,
+                      ),
                     ),
                     if (me != null)
                       Marker(
@@ -427,8 +556,10 @@ class _JobScreenState extends State<JobScreen> with WidgetsBindingObserver {
                 heroTag: 'fit',
                 backgroundColor: Colors.white,
                 onPressed: () => _fitMap(me),
-                child: const Icon(Icons.center_focus_strong_rounded,
-                    color: PartnerConstants.darkColor),
+                child: const Icon(
+                  Icons.center_focus_strong_rounded,
+                  color: PartnerConstants.darkColor,
+                ),
               ),
             ),
           ],
@@ -440,7 +571,8 @@ class _JobScreenState extends State<JobScreen> with WidgetsBindingObserver {
   Widget _panel() {
     final vehicle = PartnerConstants.vehicleFor(_job.vehicleType);
     final status = _job.status;
-    final beforeStart = status == PartnerConstants.statusAccepted ||
+    final beforeStart =
+        status == PartnerConstants.statusAccepted ||
         status == PartnerConstants.statusArrived;
 
     return ListView(
@@ -464,16 +596,40 @@ class _JobScreenState extends State<JobScreen> with WidgetsBindingObserver {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: <Widget>[
-                    Text(_job.customerName,
-                        style: const TextStyle(fontSize: 17, fontWeight: FontWeight.w800)),
-                    Text(_job.customerPhone ?? '',
-                        style: TextStyle(color: Colors.blueGrey.shade600)),
+                    Text(
+                      _job.customerName,
+                      style: const TextStyle(
+                        fontSize: 17,
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
+                    Text(
+                      'Chat or call the customer',
+                      style: TextStyle(
+                        color: Colors.blueGrey.shade600,
+                        fontSize: 12.5,
+                      ),
+                    ),
                   ],
                 ),
               ),
+              Badge(
+                isLabelVisible: _chatUnread,
+                smallSize: 10,
+                child: IconButton.filled(
+                  onPressed: _openChat,
+                  style: IconButton.styleFrom(
+                    backgroundColor: const Color(0xFF2563EB),
+                  ),
+                  icon: const Icon(Icons.chat_rounded, color: Colors.white),
+                ),
+              ),
+              const SizedBox(width: 6),
               IconButton.filled(
                 onPressed: _callCustomer,
-                style: IconButton.styleFrom(backgroundColor: PartnerConstants.successColor),
+                style: IconButton.styleFrom(
+                  backgroundColor: PartnerConstants.successColor,
+                ),
                 icon: const Icon(Icons.call_rounded, color: Colors.white),
               ),
             ],
@@ -504,22 +660,39 @@ class _JobScreenState extends State<JobScreen> with WidgetsBindingObserver {
                       children: <Widget>[
                         Text(
                           vehicleName(_job.vehicleLabel, _job.vehicleType),
-                          style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 15.5),
+                          style: const TextStyle(
+                            fontWeight: FontWeight.w700,
+                            fontSize: 15.5,
+                          ),
                         ),
-                        Text(vehicle.title,
-                            style: TextStyle(fontSize: 12, color: Colors.blueGrey.shade600)),
+                        Text(
+                          vehicle.title,
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: Colors.blueGrey.shade600,
+                          ),
+                        ),
                         if (vehiclePlate(_job.vehicleLabel) != null)
                           Container(
                             margin: const EdgeInsets.only(top: 4),
-                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 8,
+                              vertical: 2,
+                            ),
                             decoration: BoxDecoration(
                               color: const Color(0xFFFEF9C3),
                               borderRadius: BorderRadius.circular(6),
-                              border: Border.all(color: PartnerConstants.darkColor, width: 1.2),
+                              border: Border.all(
+                                color: PartnerConstants.darkColor,
+                                width: 1.2,
+                              ),
                             ),
                             child: Text(
                               vehiclePlate(_job.vehicleLabel)!,
-                              style: const TextStyle(fontWeight: FontWeight.w700, letterSpacing: 1.2),
+                              style: const TextStyle(
+                                fontWeight: FontWeight.w700,
+                                letterSpacing: 1.2,
+                              ),
                             ),
                           ),
                       ],
@@ -532,27 +705,103 @@ class _JobScreenState extends State<JobScreen> with WidgetsBindingObserver {
                 spacing: 6,
                 runSpacing: 6,
                 children: _job.issueTags
-                    .map((t) => Chip(
-                          label: Text(t, style: const TextStyle(fontSize: 12)),
-                          visualDensity: VisualDensity.compact,
-                          materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                        ))
+                    .map(
+                      (t) => Chip(
+                        label: Text(t, style: const TextStyle(fontSize: 12)),
+                        visualDensity: VisualDensity.compact,
+                        materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                      ),
+                    )
                     .toList(),
               ),
               if (_job.issueNote != null) ...<Widget>[
                 const SizedBox(height: 6),
-                Text('“${_job.issueNote}”',
-                    style: TextStyle(fontStyle: FontStyle.italic, color: Colors.blueGrey.shade700)),
+                Text(
+                  '“${_job.issueNote}”',
+                  style: TextStyle(
+                    fontStyle: FontStyle.italic,
+                    color: Colors.blueGrey.shade700,
+                  ),
+                ),
               ],
               if (_job.voiceNotePath != null) ...<Widget>[
                 const SizedBox(height: 10),
-                VoiceNotePlayer(path: _job.voiceNotePath!, seconds: _job.voiceNoteSeconds),
+                VoiceNotePlayer(
+                  path: _job.voiceNotePath!,
+                  seconds: _job.voiceNoteSeconds,
+                ),
               ],
+              if (_job.aiSummary != null) ...<Widget>[
+                const SizedBox(height: 10),
+                Container(
+                  padding: const EdgeInsets.all(10),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFFFF7ED),
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: const Color(0xFFFED7AA)),
+                  ),
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: <Widget>[
+                      const Icon(
+                        Icons.auto_awesome_rounded,
+                        size: 18,
+                        color: PartnerConstants.primaryColor,
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          'Customer\'s AI check: ${_job.aiSummary}',
+                          style: const TextStyle(fontSize: 12.5, height: 1.35),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+              const SizedBox(height: 10),
+              Material(
+                color: PartnerConstants.darkColor,
+                borderRadius: BorderRadius.circular(14),
+                child: InkWell(
+                  borderRadius: BorderRadius.circular(14),
+                  onTap: _openGuide,
+                  child: const Padding(
+                    padding: EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                    child: Row(
+                      children: <Widget>[
+                        Icon(
+                          Icons.auto_awesome_rounded,
+                          color: Color(0xFFFFB38A),
+                        ),
+                        SizedBox(width: 10),
+                        Expanded(
+                          child: Text(
+                            'AI repair guide — steps, tools & parts',
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                        ),
+                        Icon(
+                          Icons.chevron_right_rounded,
+                          color: Colors.white70,
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
               const Divider(height: 22),
               Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: <Widget>[
-                  Icon(Icons.place_outlined, size: 20, color: Colors.blueGrey.shade500),
+                  Icon(
+                    Icons.place_outlined,
+                    size: 20,
+                    color: Colors.blueGrey.shade500,
+                  ),
                   const SizedBox(width: 8),
                   Expanded(child: Text(_job.pickupAddress)),
                 ],
@@ -561,7 +810,9 @@ class _JobScreenState extends State<JobScreen> with WidgetsBindingObserver {
                 const SizedBox(height: 10),
                 OutlinedButton.icon(
                   onPressed: _navigate,
-                  style: OutlinedButton.styleFrom(minimumSize: const Size.fromHeight(46)),
+                  style: OutlinedButton.styleFrom(
+                    minimumSize: const Size.fromHeight(46),
+                  ),
                   icon: const Icon(Icons.navigation_rounded),
                   label: const Text('Navigate with Google Maps'),
                 ),
@@ -580,7 +831,9 @@ class _JobScreenState extends State<JobScreen> with WidgetsBindingObserver {
           const SizedBox(height: 8),
           TextButton(
             onPressed: _busy ? null : _release,
-            style: TextButton.styleFrom(foregroundColor: PartnerConstants.dangerColor),
+            style: TextButton.styleFrom(
+              foregroundColor: PartnerConstants.dangerColor,
+            ),
             child: const Text('Can\'t make it — release job'),
           ),
         ],
@@ -589,9 +842,7 @@ class _JobScreenState extends State<JobScreen> with WidgetsBindingObserver {
   }
 
   List<Widget> _actions(String status) {
-    Widget busyChild(String label) => _busy
-        ? const DotsLoader()
-        : Text(label);
+    Widget busyChild(String label) => _busy ? const DotsLoader() : Text(label);
 
     switch (status) {
       case PartnerConstants.statusAccepted:
@@ -607,6 +858,17 @@ class _JobScreenState extends State<JobScreen> with WidgetsBindingObserver {
             'Ask the customer for the 4-digit Start OTP',
             style: TextStyle(fontWeight: FontWeight.w800),
           ),
+          if (_job.otpAttemptsLeft != null && _job.otpAttemptsLeft! < 5)
+            Text(
+              _job.otpAttemptsLeft == 0
+                  ? 'Locked: ask the customer to create a new OTP in their app.'
+                  : '${_job.otpAttemptsLeft} tries left',
+              style: TextStyle(
+                fontSize: 12,
+                color: Colors.orange.shade800,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
           const SizedBox(height: 8),
           TextField(
             controller: _otpController,
@@ -614,8 +876,14 @@ class _JobScreenState extends State<JobScreen> with WidgetsBindingObserver {
             keyboardType: TextInputType.number,
             maxLength: 4,
             textAlign: TextAlign.center,
-            style: const TextStyle(fontSize: 26, fontWeight: FontWeight.w800, letterSpacing: 14),
-            inputFormatters: <TextInputFormatter>[FilteringTextInputFormatter.digitsOnly],
+            style: const TextStyle(
+              fontSize: 26,
+              fontWeight: FontWeight.w800,
+              letterSpacing: 14,
+            ),
+            inputFormatters: <TextInputFormatter>[
+              FilteringTextInputFormatter.digitsOnly,
+            ],
             decoration: InputDecoration(
               hintText: '••••',
               counterText: '',
@@ -641,14 +909,20 @@ class _JobScreenState extends State<JobScreen> with WidgetsBindingObserver {
               children: <Widget>[
                 Icon(Icons.build_rounded, color: PartnerConstants.successColor),
                 SizedBox(width: 10),
-                Expanded(child: Text('Work in progress. Tap below when the job is done.')),
+                Expanded(
+                  child: Text(
+                    'Work in progress. Tap below when the job is done.',
+                  ),
+                ),
               ],
             ),
           ),
           const SizedBox(height: 12),
           FilledButton(
             onPressed: _busy ? null : _complete,
-            style: FilledButton.styleFrom(backgroundColor: PartnerConstants.successColor),
+            style: FilledButton.styleFrom(
+              backgroundColor: PartnerConstants.successColor,
+            ),
             child: busyChild('Job Complete'),
           ),
         ];
@@ -672,7 +946,9 @@ class _JobScreenState extends State<JobScreen> with WidgetsBindingObserver {
           return Expanded(
             child: Container(
               height: 3,
-              color: done ? PartnerConstants.successColor : Colors.blueGrey.shade200,
+              color: done
+                  ? PartnerConstants.successColor
+                  : Colors.blueGrey.shade200,
             ),
           );
         }
@@ -686,12 +962,18 @@ class _JobScreenState extends State<JobScreen> with WidgetsBindingObserver {
               backgroundColor: done
                   ? PartnerConstants.successColor
                   : active
-                      ? PartnerConstants.primaryColor
-                      : Colors.blueGrey.shade200,
+                  ? PartnerConstants.primaryColor
+                  : Colors.blueGrey.shade200,
               child: done
-                  ? const Icon(Icons.check_rounded, size: 16, color: Colors.white)
-                  : Text('${index + 1}',
-                      style: const TextStyle(color: Colors.white, fontSize: 12)),
+                  ? const Icon(
+                      Icons.check_rounded,
+                      size: 16,
+                      color: Colors.white,
+                    )
+                  : Text(
+                      '${index + 1}',
+                      style: const TextStyle(color: Colors.white, fontSize: 12),
+                    ),
             ),
             const SizedBox(height: 4),
             Text(
@@ -708,10 +990,10 @@ class _JobScreenState extends State<JobScreen> with WidgetsBindingObserver {
   }
 
   BoxDecoration _cardDecoration() => BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        boxShadow: const <BoxShadow>[
-          BoxShadow(color: Color(0x14000000), blurRadius: 8, offset: Offset(0, 2)),
-        ],
-      );
+    color: Colors.white,
+    borderRadius: BorderRadius.circular(16),
+    boxShadow: const <BoxShadow>[
+      BoxShadow(color: Color(0x14000000), blurRadius: 8, offset: Offset(0, 2)),
+    ],
+  );
 }

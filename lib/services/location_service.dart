@@ -87,8 +87,7 @@ class LocationService {
         intervalDuration: const Duration(seconds: 15),
         foregroundNotificationConfig: const ForegroundNotificationConfig(
           notificationTitle: '8Speedy Partner — Online',
-          notificationText:
-              'You are online. Receiving nearby requests and sharing live location.',
+          notificationText: 'You are online. Receiving nearby requests and sharing live location.',
           enableWakeLock: true,
         ),
       );

@@ -94,12 +94,18 @@ class _AccountGateScreenState extends State<AccountGateScreen> {
               : Column(
                   mainAxisSize: MainAxisSize.min,
                   children: <Widget>[
-                    const Icon(Icons.cloud_off_rounded,
-                        size: 48, color: PartnerConstants.warningColor),
+                    const Icon(
+                      Icons.cloud_off_rounded,
+                      size: 48,
+                      color: PartnerConstants.warningColor,
+                    ),
                     const SizedBox(height: 12),
                     Text(_error!, textAlign: TextAlign.center),
                     const SizedBox(height: 20),
-                    FilledButton(onPressed: _resolve, child: const Text('Retry')),
+                    FilledButton(
+                      onPressed: _resolve,
+                      child: const Text('Retry'),
+                    ),
                     TextButton(onPressed: _logout, child: const Text('Logout')),
                   ],
                 ),

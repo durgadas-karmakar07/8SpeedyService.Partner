@@ -89,23 +89,42 @@ class PartnerService {
   // Requests & jobs
   // ---------------------------------------------------------------------------
 
-  bool _openRequestsV3Missing = false;
+  /// RPC names the server does not have (older database) — skipped next time.
+  static final Set<String> _missing = <String>{};
 
-  /// Open requests near the mechanic (v3 adds the customer's voice note;
-  /// falls back to v2 if the server has not been updated yet).
-  Future<List<OpenRequest>> getOpenRequests(int radiusMeters) async {
-    final params = <String, dynamic>{'p_radius_meters': radiusMeters};
-    if (!_openRequestsV3Missing) {
+  static bool _isMissing(Object e) =>
+      e is PostgrestException && (e.code == 'PGRST202' || e.code == 'PT404');
+
+  /// Calls the first RPC of [names] the server knows (newest first).
+  Future<dynamic> _rpcFirst(
+    List<String> names, [
+    Map<String, dynamic>? params,
+  ]) async {
+    Object? lastError;
+    for (final name in names) {
+      if (_missing.contains(name) && name != names.last) continue;
       try {
-        final data = await _client.rpc<dynamic>('mechanic_get_open_requests_v3', params: params);
-        return _asList(data).map(OpenRequest.fromJson).toList();
-      } on PostgrestException catch (e) {
-        // PGRST202 = function not found (older database).
-        if (e.code != 'PGRST202') rethrow;
-        _openRequestsV3Missing = true;
+        return await _client.rpc<dynamic>(name, params: params);
+      } catch (e) {
+        if (!_isMissing(e)) rethrow;
+        _missing.add(name);
+        lastError = e;
       }
     }
-    final data = await _client.rpc<dynamic>('mechanic_get_open_requests_v2', params: params);
+    throw lastError ?? StateError('Server function missing.');
+  }
+
+  /// Open requests near the mechanic (v4 adds the AI summary, v3 the voice
+  /// note; older servers fall back automatically).
+  Future<List<OpenRequest>> getOpenRequests(int radiusMeters) async {
+    final data = await _rpcFirst(
+      const <String>[
+        'mechanic_get_open_requests_v4',
+        'mechanic_get_open_requests_v3',
+        'mechanic_get_open_requests_v2',
+      ],
+      <String, dynamic>{'p_radius_meters': radiusMeters},
+    );
     return _asList(data).map(OpenRequest.fromJson).toList();
   }
 
@@ -116,15 +135,35 @@ class PartnerService {
     );
     final map = _asMap(data);
     if (map == null) {
-      throw StateError('Job accepted but details could not load. Please reopen the app.');
+      throw StateError(
+        'Job accepted but details could not load. Please reopen the app.',
+      );
     }
     return ActiveJob.fromJson(map);
   }
 
+  /// Active job (v2 has no phone number; the phone is fetched on "Call").
   Future<ActiveJob?> getActiveJob() async {
-    final data = await _client.rpc<dynamic>('mechanic_get_active_job');
+    final data = await _rpcFirst(const <String>[
+      'mechanic_get_active_job_v2',
+      'mechanic_get_active_job',
+    ]);
     final map = _asMap(data);
     return map == null ? null : ActiveJob.fromJson(map);
+  }
+
+  /// Customer's phone for the active job (logged + rate limited on the server).
+  Future<String?> getCustomerPhone(ActiveJob job) async {
+    try {
+      final data = await _client.rpc<dynamic>(
+        'mechanic_get_customer_contact',
+        params: <String, dynamic>{'p_booking_id': job.bookingId},
+      );
+      return _asMap(data)?['phone']?.toString();
+    } catch (e) {
+      if (_isMissing(e)) return job.customerPhone;
+      rethrow;
+    }
   }
 
   Future<void> markArrived(String bookingId) async {
@@ -144,11 +183,29 @@ class PartnerService {
     return StartJobResult.fromJson(map);
   }
 
-  Future<void> completeJob(String bookingId) async {
-    await _client.rpc<dynamic>(
-      'mechanic_complete_job',
-      params: <String, dynamic>{'p_booking_id': bookingId},
-    );
+  /// Completes the job with the repair bill (labour + parts the customer
+  /// paid). Falls back to the old RPC on an older server.
+  Future<void> completeJob(
+    String bookingId, {
+    int? repairAmount,
+    String? notes,
+  }) async {
+    try {
+      await _client.rpc<dynamic>(
+        'mechanic_complete_job_v2',
+        params: <String, dynamic>{
+          'p_booking_id': bookingId,
+          'p_repair_amount': repairAmount,
+          'p_repair_notes': notes?.trim(),
+        },
+      );
+    } catch (e) {
+      if (!_isMissing(e)) rethrow;
+      await _client.rpc<dynamic>(
+        'mechanic_complete_job',
+        params: <String, dynamic>{'p_booking_id': bookingId},
+      );
+    }
   }
 
   Future<void> releaseJob(String bookingId, String reason) async {
@@ -172,16 +229,83 @@ class PartnerService {
   // ---------------------------------------------------------------------------
 
   Future<PartnerStats> getStats() async {
-    final data = await _client.rpc<dynamic>('mechanic_get_stats');
+    final data = await _rpcFirst(const <String>[
+      'mechanic_get_stats_v2',
+      'mechanic_get_stats',
+    ]);
     final map = _asMap(data);
     return PartnerStats.fromJson(map ?? const <String, dynamic>{});
   }
 
   Future<List<JobHistoryItem>> getHistory({int limit = 50}) async {
-    final data = await _client.rpc<dynamic>(
-      'mechanic_get_job_history_v2',
-      params: <String, dynamic>{'p_limit': limit},
+    final data = await _rpcFirst(
+      const <String>[
+        'mechanic_get_job_history_v3',
+        'mechanic_get_job_history_v2',
+      ],
+      <String, dynamic>{'p_limit': limit},
     );
     return _asList(data).map(JobHistoryItem.fromJson).toList();
+  }
+
+  // ---------------------------------------------------------------------------
+  // Chat & AI repair guide
+  // ---------------------------------------------------------------------------
+
+  Future<ChatThread> getMessages(String bookingId) async {
+    final data = await _client.rpc<dynamic>(
+      'get_booking_messages',
+      params: <String, dynamic>{'p_booking_id': bookingId},
+    );
+    final map = _asMap(data);
+    return map == null
+        ? const ChatThread(messages: <ChatMessage>[], open: false)
+        : ChatThread.fromJson(map);
+  }
+
+  Future<ChatMessage> sendMessage(String bookingId, String body) async {
+    final data = await _client.rpc<dynamic>(
+      'send_booking_message',
+      params: <String, dynamic>{
+        'p_booking_id': bookingId,
+        'p_body': body.trim(),
+      },
+    );
+    final map = _asMap(data);
+    if (map == null) throw StateError('Message could not be sent.');
+    return ChatMessage.fromJson(map);
+  }
+
+  /// AI repair guide for the active job (the server reads the job itself).
+  Future<RepairGuide> getRepairGuide(
+    String bookingId, {
+    String language = 'en',
+  }) async {
+    try {
+      final response = await _client.functions.invoke(
+        'ai-assistant',
+        body: <String, dynamic>{
+          'mode': 'mechanic',
+          'booking_id': bookingId,
+          'language': language,
+        },
+      );
+      final data = response.data;
+      if (data is Map && data['result'] is Map) {
+        return RepairGuide.fromResponse(Map<String, dynamic>.from(data));
+      }
+      throw StateError(
+        data is Map && data['error'] is String
+            ? data['error'] as String
+            : 'Repair guide not available.',
+      );
+    } on FunctionException catch (e) {
+      final d = e.details;
+      throw StateError(
+        d is Map && d['error'] is String
+            ? d['error'] as String
+            : 'Repair guide not available.',
+      );
+    }
   }
 }

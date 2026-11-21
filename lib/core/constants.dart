@@ -33,7 +33,7 @@ class PartnerConstants {
 
   /// Must match `version:` in pubspec.yaml (without +build).
   /// Compared with `app_config.min_partner_version` for force updates.
-  static const String appVersion = '1.0.0';
+  static const String appVersion = '1.1.0';
   static const String playStoreUrl =
       'https://play.google.com/store/apps/details?id=com.speedyservice.partner';
 
@@ -59,8 +59,11 @@ class PartnerConstants {
   // Timings
   // ---------------------------------------------------------------------------
 
-  /// How often open requests are refreshed while online.
+  /// How often open requests are refreshed while online (app on screen).
   static const Duration requestPollInterval = Duration(seconds: 8);
+
+  /// Same, while the app is in the background / screen off (still rings).
+  static const Duration backgroundPollInterval = Duration(seconds: 12);
 
   /// How often the active job is re-checked (detects customer cancel).
   static const Duration jobPollInterval = Duration(seconds: 8);
@@ -124,8 +127,16 @@ class PartnerConstants {
   /// Illustration for a booking's vehicle (body type first, else category).
   static String vehicleAsset({String? bodyType, required String category}) {
     const bodies = <String>{
-      'cycle', 'e_rickshaw', 'scooter', 'motorcycle', 'auto_rickshaw',
-      'hatchback', 'sedan', 'suv', 'pickup', 'truck',
+      'cycle',
+      'e_rickshaw',
+      'scooter',
+      'motorcycle',
+      'auto_rickshaw',
+      'hatchback',
+      'sedan',
+      'suv',
+      'pickup',
+      'truck',
     };
     if (bodyType != null && bodies.contains(bodyType)) {
       return 'assets/vehicles/$bodyType.png';

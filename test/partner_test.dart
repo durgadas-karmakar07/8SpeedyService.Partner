@@ -23,7 +23,11 @@ void main() {
     expect(s.state, AccountState.verified);
     expect(s.profile!.firstName, 'Raju');
     expect(s.profile!.rating, 4.5);
-    expect(AccountStatus.fromJson(<String, dynamic>{'state': 'NOT_REGISTERED'}).profile, isNull);
+    expect(
+      AccountStatus.fromJson(<String, dynamic>{'state': 'NOT_REGISTERED'})
+          .profile,
+      isNull,
+    );
   });
 
   test('OpenRequest and ActiveJob parse numbers defensively', () {
@@ -69,7 +73,10 @@ void main() {
   });
 
   test('vehicle name and plate from booking label', () {
-    expect(vehicleName('Honda Activa 6G • WB38AB1234', 'two_wheeler'), 'Honda Activa 6G');
+    expect(
+      vehicleName('Honda Activa 6G • WB38AB1234', 'two_wheeler'),
+      'Honda Activa 6G',
+    );
     expect(vehiclePlate('Honda Activa 6G • WB38AB1234'), 'WB38AB1234');
     expect(vehicleName(null, 'four_wheeler'), 'Car / SUV');
     expect(vehiclePlate('Honda Activa 6G'), isNull);

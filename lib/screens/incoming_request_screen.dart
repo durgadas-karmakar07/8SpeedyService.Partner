@@ -71,13 +71,15 @@ class _IncomingRequestScreenState extends State<IncomingRequestScreen>
     if (_closing || _gone) return;
     if (state == AppLifecycleState.resumed) {
       // Animations pause in the background, so check the real time.
-      if (DateTime.now().difference(_openedAt) >= PartnerConstants.incomingRingTimeout) {
+      if (DateTime.now().difference(_openedAt) >=
+          PartnerConstants.incomingRingTimeout) {
         _close(IncomingDecision.missed);
       } else if (!_ringing && !_silenced) {
         _ringing = true;
         AlertService.instance.startRinging();
       }
-    } else if (state == AppLifecycleState.paused || state == AppLifecycleState.hidden) {
+    } else if (state == AppLifecycleState.paused ||
+        state == AppLifecycleState.hidden) {
       // Never keep ringing while the mechanic is in another app.
       _stopRinging();
     }
@@ -136,7 +138,11 @@ class _IncomingRequestScreenState extends State<IncomingRequestScreen>
             gradient: LinearGradient(
               begin: Alignment.topCenter,
               end: Alignment.bottomCenter,
-              colors: <Color>[Color(0xFF1E293B), Color(0xFF0B1220), Color(0xFF2A1208)],
+              colors: <Color>[
+                Color(0xFF1E293B),
+                Color(0xFF0B1220),
+                Color(0xFF2A1208),
+              ],
               stops: <double>[0, 0.55, 1],
             ),
           ),
@@ -158,7 +164,10 @@ class _IncomingRequestScreenState extends State<IncomingRequestScreen>
                   ),
                   Text(
                     'away from you',
-                    style: TextStyle(color: Colors.white.withValues(alpha: 0.6), fontSize: 13),
+                    style: TextStyle(
+                      color: Colors.white.withValues(alpha: 0.6),
+                      fontSize: 13,
+                    ),
                   ),
                   Expanded(child: Center(child: _ripple(r))),
                   Text(
@@ -175,7 +184,10 @@ class _IncomingRequestScreenState extends State<IncomingRequestScreen>
                   if (r.vehicleLabel != null)
                     Text(
                       vehicle.title,
-                      style: TextStyle(color: Colors.white.withValues(alpha: 0.6), fontSize: 13),
+                      style: TextStyle(
+                        color: Colors.white.withValues(alpha: 0.6),
+                        fontSize: 13,
+                      ),
                     ),
                   const SizedBox(height: 10),
                   Wrap(
@@ -188,7 +200,11 @@ class _IncomingRequestScreenState extends State<IncomingRequestScreen>
                   Row(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: <Widget>[
-                      Icon(Icons.place_rounded, size: 16, color: Colors.white.withValues(alpha: 0.6)),
+                      Icon(
+                        Icons.place_rounded,
+                        size: 16,
+                        color: Colors.white.withValues(alpha: 0.6),
+                      ),
                       const SizedBox(width: 4),
                       Flexible(
                         child: Text(
@@ -196,7 +212,10 @@ class _IncomingRequestScreenState extends State<IncomingRequestScreen>
                           maxLines: 2,
                           overflow: TextOverflow.ellipsis,
                           textAlign: TextAlign.center,
-                          style: TextStyle(color: Colors.white.withValues(alpha: 0.8), fontSize: 13),
+                          style: TextStyle(
+                            color: Colors.white.withValues(alpha: 0.8),
+                            fontSize: 13,
+                          ),
                         ),
                       ),
                     ],
@@ -212,6 +231,19 @@ class _IncomingRequestScreenState extends State<IncomingRequestScreen>
                         color: Colors.white.withValues(alpha: 0.75),
                         fontStyle: FontStyle.italic,
                         fontSize: 13,
+                      ),
+                    ),
+                  ],
+                  if (r.aiSummary != null) ...<Widget>[
+                    const SizedBox(height: 8),
+                    Text(
+                      'AI: ${r.aiSummary}',
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                        color: Colors.white.withValues(alpha: 0.85),
+                        fontSize: 12.5,
                       ),
                     ),
                   ],
@@ -252,7 +284,9 @@ class _IncomingRequestScreenState extends State<IncomingRequestScreen>
               width: 10,
               height: 10,
               decoration: BoxDecoration(
-                color: on ? PartnerConstants.primaryColor : PartnerConstants.primaryColor.withValues(alpha: 0.3),
+                color: on
+                    ? PartnerConstants.primaryColor
+                    : PartnerConstants.primaryColor.withValues(alpha: 0.3),
                 shape: BoxShape.circle,
               ),
             );
@@ -288,7 +322,10 @@ class _IncomingRequestScreenState extends State<IncomingRequestScreen>
                   ),
                   Text(
                     '$left',
-                    style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w700),
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontWeight: FontWeight.w700,
+                    ),
                   ),
                 ],
               );
@@ -321,7 +358,11 @@ class _IncomingRequestScreenState extends State<IncomingRequestScreen>
             ),
           ],
         ),
-        child: VehicleImage(category: r.vehicleType, bodyType: r.vehicleBodyType, height: 90),
+        child: VehicleImage(
+          category: r.vehicleType,
+          bodyType: r.vehicleBodyType,
+          height: 90,
+        ),
       ),
     );
   }
@@ -334,7 +375,10 @@ class _IncomingRequestScreenState extends State<IncomingRequestScreen>
         border: Border.all(color: Colors.white24),
         borderRadius: BorderRadius.circular(20),
       ),
-      child: Text(t, style: const TextStyle(color: Colors.white, fontSize: 12.5)),
+      child: Text(
+        t,
+        style: const TextStyle(color: Colors.white, fontSize: 12.5),
+      ),
     );
   }
 
@@ -372,7 +416,8 @@ class _IncomingRequestScreenState extends State<IncomingRequestScreen>
         AnimatedBuilder(
           animation: _pulse,
           builder: (context, child) {
-            final wobble = math.sin(_pulse.value * math.pi * 8) *
+            final wobble =
+                math.sin(_pulse.value * math.pi * 8) *
                 (_pulse.value < 0.35 ? 0.12 : 0.0);
             return Transform.rotate(angle: wobble, child: child);
           },
@@ -435,7 +480,10 @@ class _CallButton extends StatelessWidget {
         const SizedBox(height: 8),
         Text(
           label,
-          style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w700),
+          style: const TextStyle(
+            color: Colors.white,
+            fontWeight: FontWeight.w700,
+          ),
         ),
       ],
     );
