@@ -451,6 +451,7 @@ class ChatThread {
 /// AI repair guide for the mechanic's active job (`ai-assistant`, mode mechanic).
 class RepairGuide {
   const RepairGuide({
+    this.requestId = '',
     required this.isAi,
     required this.summary,
     required this.urgency,
@@ -483,6 +484,7 @@ class RepairGuide {
             .where((c) => c.title.isNotEmpty)
             .toList();
     return RepairGuide(
+      requestId: json['id']?.toString() ?? '',
       isAi: json['engine'] == 'ai',
       summary: r['summary']?.toString() ?? '',
       urgency: r['urgency']?.toString() ?? 'medium',
@@ -495,6 +497,8 @@ class RepairGuide {
     );
   }
 
+  /// Server id of the stored answer (for "Helpful / Report").
+  final String requestId;
   final bool isAi;
   final String summary;
   final String urgency;

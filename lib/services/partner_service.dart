@@ -308,4 +308,22 @@ class PartnerService {
       );
     }
   }
+
+  /// "Helpful / Not helpful / Report" for an AI repair guide (Google Play
+  /// AI-generated content policy). `feedback` is one of `helpful`,
+  /// `not_helpful`, `wrong`, `unsafe`, `offensive`.
+  Future<void> sendAiFeedback(
+    String requestId,
+    String feedback, {
+    String? note,
+  }) async {
+    await _client.rpc<dynamic>(
+      'ai_submit_feedback',
+      params: <String, dynamic>{
+        'p_request_id': requestId,
+        'p_feedback': feedback,
+        'p_note': note,
+      },
+    );
+  }
 }

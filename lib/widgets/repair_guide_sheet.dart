@@ -5,6 +5,7 @@ import '../core/constants.dart';
 import '../core/error_helper.dart';
 import '../models/models.dart';
 import '../services/partner_service.dart';
+import 'ai_feedback.dart';
 import 'speedy_loader.dart';
 
 /// Opens the AI repair guide for the active job: likely causes, a step-by-step
@@ -270,6 +271,18 @@ class _RepairGuideState extends State<_RepairGuide> {
                               ],
                             ),
                           ),
+                        ),
+                      ],
+                      if (g.requestId.isNotEmpty) ...<Widget>[
+                        const SizedBox(height: 16),
+                        AiFeedbackBar(
+                          key: ValueKey<String>(g.requestId),
+                          onSubmit: (feedback, note) =>
+                              widget.api.sendAiFeedback(
+                                g.requestId,
+                                feedback,
+                                note: note,
+                              ),
                         ),
                       ],
                       const SizedBox(height: 14),
